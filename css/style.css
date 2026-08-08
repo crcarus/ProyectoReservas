@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #121316;
+  --bg-elevated: #1b1d21;
+  --bg-card: #202228;
+  --border: #33353c;
+  --text: #f2f3f0;
+  --text-dim: #9a9da6;
+  --accent: #d6ff3f;
+  --accent-dim: #a8cc2f;
+  --danger: #ff5a5f;
+  --ok: #3fe0a0;
+  --radius: 4px;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'Work Sans', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(214, 255, 63, 0.06), transparent 45%),
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+header.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 16px;
+  margin-bottom: 32px;
+}
+
+header.top .brand {
+  font-family: var(--font-display);
+  font-size: 42px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+header.top .brand span { color: var(--accent); }
+
+header.top .tag {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  font-weight: 400;
+  margin: 0 0 12px;
+}
+
+h2 { font-size: 28px; }
+h3 { font-size: 20px; color: var(--accent); }
+
+p { color: var(--text-dim); line-height: 1.5; }
+
+.day-group { margin-bottom: 36px; }
+
+.day-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text);
+  text-transform: capitalize;
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
+
+.classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.class-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.class-card:hover { border-color: var(--accent-dim); transform: translateY(-2px); }
+
+.class-card .tipo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.class-card .hora {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.class-card .cupos {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.class-card .cupos.lleno { color: var(--danger); }
+.class-card .cupos.pocos { color: var(--accent); }
+
+button, .btn {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  cursor: pointer;
+  background: var(--accent);
+  color: #111;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+  width: 100%;
+}
+
+button:hover { filter: brightness(1.08); }
+button:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.danger { background: var(--danger); color: #111; }
+
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.field { margin-bottom: 14px; }
+
+.field label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.field input, .field select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+
+.msg {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.msg.ok { background: rgba(63, 224, 160, 0.1); color: var(--ok); border: 1px solid rgba(63,224,160,0.3); }
+.msg.error { background: rgba(255, 90, 95, 0.1); color: var(--danger); border: 1px solid rgba(255,90,95,0.3); }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+
+/* ---- Admin ---- */
+
+.admin-login {
+  max-width: 360px;
+  margin: 80px auto;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: none;
+  width: auto;
+  color: var(--text-dim);
+  border-radius: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 16px;
+}
+
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover { filter: none; color: var(--text); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 28px;
+}
+
+.inline-form .field { margin-bottom: 0; flex: 1; min-width: 120px; }
+.inline-form button { width: auto; }
+
+.pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pill.activo { background: rgba(63,224,160,0.15); color: var(--ok); }
+.pill.inactivo { background: rgba(255,90,95,0.15); color: var(--danger); }
