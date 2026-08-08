@@ -1,7 +1,7 @@
 // api.js
 // Reemplaza esta URL por la de tu Web App de Apps Script una vez desplegado
 // (Extensiones > Apps Script > Implementar > Nueva implementación > Aplicación web).
-const API_URL = 'PASTE_TU_URL_DE_WEB_APP_AQUI';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw_RJinlLKVLTRJBznk4ugjK_SWDKv2sy4ub9mDN7XYcRmY-ugSxO037XNiIvAWGXvZww/exec';
 
 /**
  * Llama a una acción de la API. Usa text/plain para evitar el preflight CORS
