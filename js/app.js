@@ -1,78 +1,172 @@
-// app.js — lógica del perfil alumno
+// app.js — flujo del alumno: tipo de clase → calendario mensual → horas → reserva
 
+const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+let tipos = [];
+let tipoActual = null;
+let mesActual = primerDiaDelMes(new Date());
+let clasesDelMes = [];      // clases del tipoActual dentro del mes visible
+let diaSeleccionado = null; // 'yyyy-MM-dd'
 let claseSeleccionada = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const idCancelar = params.get('cancelar');
-
   if (idCancelar) {
     abrirModalCancelacion(idCancelar);
   }
 
-  await cargarClases();
+  await cargarTipos();
 });
 
-async function cargarClases() {
+// ---------- Pantalla 1: elegir tipo de clase ----------
+
+async function cargarTipos() {
   const contenido = document.getElementById('contenido');
   try {
-    const hoy = new Date();
-    const enDosSemanas = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
-    const clases = await apiCall('getClasesDisponibles', {
-      desde: isoDate(hoy),
-      hasta: isoDate(enDosSemanas)
-    });
-
-    renderClases(clases);
+    tipos = await apiCall('getTiposDeClase');
+    renderTipos();
   } catch (err) {
-    contenido.innerHTML = `<div class="msg error">No se pudieron cargar las clases: ${escapeHtml(err.message)}</div>`;
+    contenido.innerHTML = `<div class="msg error">No se pudieron cargar los tipos de clase: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-function renderClases(clases) {
+function renderTipos() {
   const contenido = document.getElementById('contenido');
 
-  if (!clases.length) {
-    contenido.innerHTML = `<div class="empty-state">No hay clases programadas por ahora. Vuelve a revisar más tarde.</div>`;
+  if (!tipos.length) {
+    contenido.innerHTML = `<div class="empty-state">Todavía no hay clases configuradas. Vuelve a revisar más tarde.</div>`;
     return;
   }
 
-  const porFecha = {};
-  clases.forEach(c => {
-    if (!porFecha[c.fecha]) porFecha[c.fecha] = [];
-    porFecha[c.fecha].push(c);
-  });
-
-  const fechas = Object.keys(porFecha).sort();
-
-  contenido.innerHTML = fechas.map(fecha => {
-    const tarjetas = porFecha[fecha].map(c => {
-      const lleno = c.cupo_disponible <= 0;
-      const pocos = !lleno && c.cupo_disponible <= 3;
-      const claseCupo = lleno ? 'lleno' : (pocos ? 'pocos' : '');
-      const textoCupo = lleno ? 'Sin cupos' : `${c.cupo_disponible} de ${c.cupo_maximo} cupos`;
-
-      return `
-        <div class="class-card">
-          <div class="tipo">${escapeHtml(c.nombre_tipo)}</div>
-          <div class="hora">${c.hora_inicio}</div>
-          <div class="cupos ${claseCupo}">${textoCupo}</div>
-          <button ${lleno ? 'disabled' : ''} onclick='abrirModalReserva(${JSON.stringify(c)})'>
-            ${lleno ? 'Sin cupos' : 'Reservar'}
-          </button>
+  contenido.innerHTML = `
+    <div class="screen-header">
+      <div class="nombre-tipo">¿Qué clase quieres reservar?</div>
+    </div>
+    <div class="tipos-grid">
+      ${tipos.map(t => `
+        <div class="tipo-card" onclick='seleccionarTipo(${JSON.stringify(t)})'>
+          <div class="nombre">${escapeHtml(t.nombre)}</div>
+          <div class="detalle">${t.duracion_minutos} min · hasta ${t.cupo_maximo} cupos</div>
         </div>
-      `;
-    }).join('');
+      `).join('')}
+    </div>
+  `;
+}
 
-    return `
-      <div class="day-group">
-        <div class="day-title">${formatearFechaLarga(fecha)}</div>
-        <div class="classes-grid">${tarjetas}</div>
+// ---------- Pantalla 2: calendario mensual ----------
+
+function seleccionarTipo(tipo) {
+  tipoActual = tipo;
+  mesActual = primerDiaDelMes(new Date());
+  cargarMesYRenderizar();
+}
+
+async function cargarMesYRenderizar() {
+  const contenido = document.getElementById('contenido');
+  contenido.innerHTML = '<p>Cargando calendario...</p>';
+
+  try {
+    const desde = mesActual;
+    const hasta = ultimoDiaDelMes(mesActual);
+
+    const clases = await apiCall('getClasesDisponibles', {
+      desde: isoDate(desde),
+      hasta: isoDate(hasta)
+    });
+
+    clasesDelMes = clases.filter(c => c.id_tipo === tipoActual.id_tipo);
+    renderCalendario();
+  } catch (err) {
+    contenido.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function cambiarMes(delta) {
+  mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+  cargarMesYRenderizar();
+}
+
+function renderCalendario() {
+  const contenido = document.getElementById('contenido');
+
+  const diasConClases = new Set(clasesDelMes.map(c => c.fecha));
+  const primerDia = mesActual.getDay(); // 0=domingo
+  const totalDias = ultimoDiaDelMes(mesActual).getDate();
+  const hoyISO = isoDate(new Date());
+
+  let celdas = '';
+  for (let i = 0; i < primerDia; i++) {
+    celdas += `<div class="calendar-day vacio"></div>`;
+  }
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const fecha = new Date(mesActual.getFullYear(), mesActual.getMonth(), dia);
+    const fechaISO = isoDate(fecha);
+    const disponible = diasConClases.has(fechaISO) && fechaISO >= hoyISO;
+    celdas += `
+      <div class="calendar-day ${disponible ? 'disponible' : ''}"
+           ${disponible ? `onclick="seleccionarDia('${fechaISO}')"` : ''}>
+        ${dia}
       </div>
     `;
-  }).join('');
+  }
+
+  contenido.innerHTML = `
+    <button class="back-link" onclick="renderTipos()">&larr; Elegir otra clase</button>
+    <div class="screen-header">
+      <div class="nombre-tipo">${escapeHtml(tipoActual.nombre)}</div>
+      <div class="meta">Duración: ${tipoActual.duracion_minutos} min · Selecciona un día</div>
+    </div>
+    <div class="calendar-header">
+      <button onclick="cambiarMes(-1)">&larr;</button>
+      <div class="calendar-month-label">${formatearMesLargo(mesActual)}</div>
+      <button onclick="cambiarMes(1)">&rarr;</button>
+    </div>
+    <div class="calendar-dow-row">
+      ${DOW.map(d => `<div class="calendar-dow">${d}</div>`).join('')}
+    </div>
+    <div class="calendar-grid">${celdas}</div>
+  `;
 }
+
+// ---------- Pantalla 3: horarios de un día ----------
+
+function seleccionarDia(fechaISO) {
+  diaSeleccionado = fechaISO;
+  renderHoras();
+}
+
+function renderHoras() {
+  const contenido = document.getElementById('contenido');
+
+  const clasesDelDia = clasesDelMes
+    .filter(c => c.fecha === diaSeleccionado)
+    .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+  contenido.innerHTML = `
+    <button class="back-link" onclick="renderCalendario()">&larr; Volver al calendario</button>
+    <div class="screen-header">
+      <div class="nombre-tipo">${formatearFechaLarga(diaSeleccionado)}</div>
+      <div class="meta">${escapeHtml(tipoActual.nombre)} · Selecciona una hora</div>
+    </div>
+    <div class="horas-list">
+      ${clasesDelDia.map(c => {
+        const lleno = c.cupo_disponible <= 0;
+        const pocos = !lleno && c.cupo_disponible <= 3;
+        const claseCupo = lleno ? 'lleno' : (pocos ? 'pocos' : '');
+        const textoCupo = lleno ? 'Sin cupos' : `${c.cupo_disponible} de ${c.cupo_maximo} cupos`;
+        return `
+          <button class="hora-btn" ${lleno ? 'disabled' : ''} onclick='abrirModalReserva(${JSON.stringify(c)})'>
+            <span class="hora">${c.hora_inicio}</span>
+            <span class="cupos-txt ${claseCupo}">${textoCupo}</span>
+          </button>
+        `;
+      }).join('') || '<p>No hay horarios para este día.</p>'}
+    </div>
+  `;
+}
+
+// ---------- Modal de reserva ----------
 
 function abrirModalReserva(clase) {
   claseSeleccionada = clase;
@@ -98,7 +192,7 @@ document.addEventListener('submit', async (e) => {
   btn.textContent = 'Reservando...';
 
   try {
-    const resultado = await apiCall('crearReserva', {
+    await apiCall('crearReserva', {
       id_clase: claseSeleccionada.id_clase,
       nombre: document.getElementById('f-nombre').value,
       apellido: document.getElementById('f-apellido').value,
@@ -109,9 +203,10 @@ document.addEventListener('submit', async (e) => {
     document.getElementById('form-msg').innerHTML =
       `<div class="msg ok">¡Reserva confirmada! Te enviamos un correo con los detalles.</div>`;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       cerrarModal();
-      cargarClases();
+      await cargarMesYRenderizar();
+      renderHoras();
     }, 1500);
   } catch (err) {
     document.getElementById('form-msg').innerHTML =
@@ -121,6 +216,8 @@ document.addEventListener('submit', async (e) => {
     btn.textContent = 'Confirmar reserva';
   }
 });
+
+// ---------- Cancelación vía link del email ----------
 
 let idReservaACancelar = null;
 
@@ -141,8 +238,22 @@ async function confirmarCancelacion() {
 
 // ---------- helpers ----------
 
+function primerDiaDelMes(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function ultimoDiaDelMes(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
 function isoDate(date) {
-  return date.toISOString().slice(0, 10);
+  const d = new Date(date);
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+
+function formatearMesLargo(date) {
+  return date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
 }
 
 function formatearFechaLarga(fechaISO) {

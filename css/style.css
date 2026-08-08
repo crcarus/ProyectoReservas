@@ -207,6 +207,173 @@ button.danger { background: var(--danger); color: #111; }
   color: var(--text-dim);
 }
 
+/* ---- Selector de tipo de clase (alumno) ---- */
+
+.tipos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.tipo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tipo-card:hover { border-color: var(--accent-dim); }
+
+.tipo-card .nombre {
+  font-family: var(--font-display);
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+.tipo-card .detalle {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ---- Navegación entre pantallas ---- */
+
+.back-link {
+  background: none;
+  width: auto;
+  color: var(--text-dim);
+  padding: 6px 0;
+  margin-bottom: 18px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.back-link:hover { color: var(--accent); filter: none; }
+
+.screen-header {
+  margin-bottom: 24px;
+}
+
+.screen-header .nombre-tipo {
+  font-family: var(--font-display);
+  font-size: 28px;
+}
+
+.screen-header .meta {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ---- Calendario mensual ---- */
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.calendar-header button {
+  width: auto;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.calendar-header button:hover { border-color: var(--accent); }
+
+.calendar-month-label {
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-transform: capitalize;
+}
+
+.calendar-dow-row, .calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calendar-dow-row {
+  margin-bottom: 8px;
+}
+
+.calendar-dow {
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.calendar-day.vacio { visibility: hidden; }
+
+.calendar-day.disponible {
+  background: var(--accent);
+  color: #111;
+  cursor: pointer;
+  border-color: var(--accent);
+}
+
+.calendar-day.disponible:hover { filter: brightness(1.08); }
+
+/* ---- Lista de horarios de un día ---- */
+
+.horas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hora-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  width: 100%;
+  text-align: left;
+}
+
+.hora-btn:hover { border-color: var(--accent-dim); }
+
+.hora-btn .hora {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text);
+}
+
+.hora-btn .cupos-txt {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.hora-btn .cupos-txt.pocos { color: var(--accent); }
+.hora-btn .cupos-txt.lleno { color: var(--danger); }
+
+.hora-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.hora-btn:disabled:hover { border-color: var(--border); }
+
 /* ---- Admin ---- */
 
 .admin-login {
