@@ -64,7 +64,7 @@ function seleccionarTipo(tipo) {
 
 async function cargarMesYRenderizar() {
   const contenido = document.getElementById('contenido');
-  contenido.innerHTML = '<p>Cargando calendario...</p>';
+  contenido.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando calendario...</div>';
 
   try {
     const desde = mesActual;

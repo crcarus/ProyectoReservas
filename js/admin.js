@@ -51,7 +51,7 @@ function cambiarTab(tab) {
 
 async function renderTabTipos() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
 
   try {
     cacheTipos = await adminCall('adminGetTiposDeClase');
@@ -73,20 +73,18 @@ async function renderTabTipos() {
         <button onclick="crearTipo()">Agregar tipo de clase</button>
       </div>
       <div id="tipos-msg"></div>
-      <table>
-        <thead><tr><th>Nombre</th><th>Duración</th><th>Cupo</th><th>Estado</th><th></th></tr></thead>
-        <tbody>
-          ${cacheTipos.map(t => `
-            <tr>
-              <td>${escapeHtml(t.nombre)}</td>
-              <td>${t.duracion_minutos} min</td>
-              <td>${t.cupo_maximo}</td>
-              <td><span class="pill ${t.activo ? 'activo' : 'inactivo'}">${t.activo ? 'Activo' : 'Inactivo'}</span></td>
-              <td><button class="secondary" style="width:auto;" onclick="toggleTipo('${t.id_tipo}', ${!t.activo})">${t.activo ? 'Desactivar' : 'Activar'}</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      <div class="planes-grid">
+        ${cacheTipos.map(t => `
+          <div class="plan-card">
+            <div class="nombre">${escapeHtml(t.nombre)}</div>
+            <div class="detalle">${t.duracion_minutos} min · hasta ${t.cupo_maximo} cupos</div>
+            <span class="pill ${t.activo ? 'activo' : 'inactivo'}">${t.activo ? 'Activo' : 'Inactivo'}</span>
+            <div class="acciones">
+              <button class="secondary" onclick="toggleTipo('${t.id_tipo}', ${!t.activo})">${t.activo ? 'Desactivar' : 'Activar'}</button>
+            </div>
+          </div>
+        `).join('') || '<p style="color:var(--text-dim);">Todavía no hay tipos de clase configurados.</p>'}
+      </div>
     `;
   } catch (err) {
     el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
@@ -126,7 +124,7 @@ let diaEnEdicion = null; // `${id_tipo}|${dia}` del día abierto en el panel de 
 
 async function renderTabHorarios() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
   horasSeleccionadas = [];
   horarioSeleccionado = null;
   diaEnEdicion = null;
@@ -462,7 +460,7 @@ async function renderTabReservas() {
       <div class="field"><label>Hasta</label><input type="date" id="r-hasta" value="${enDosSemanas}"></div>
       <button onclick="buscarReservas()">Buscar</button>
     </div>
-    <div id="reservas-tabla"><p>Cargando...</p></div>
+    <div id="reservas-tabla"><div class="loading-state"><div class="spinner"></div> Cargando...</div></div>
     <div id="detalle-reservas"></div>
   `;
 
@@ -473,27 +471,29 @@ async function buscarReservas() {
   const desde = document.getElementById('r-desde').value;
   const hasta = document.getElementById('r-hasta').value;
   const cont = document.getElementById('reservas-tabla');
-  cont.innerHTML = '<p>Cargando...</p>';
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
   document.getElementById('detalle-reservas').innerHTML = '';
 
   try {
     const resumen = await adminCall('adminGetResumenClases', { desde, hasta });
 
     cont.innerHTML = `
-      <table>
-        <thead><tr><th>Clase</th><th>Fecha</th><th>Hora</th><th>Ocupación</th><th></th></tr></thead>
-        <tbody>
-          ${resumen.map(c => `
-            <tr>
-              <td>${escapeHtml(c.nombre_tipo)}</td>
-              <td>${c.fecha}</td>
-              <td>${c.hora_inicio}</td>
-              <td>${c.ocupados} / ${c.cupo_maximo}</td>
-              <td><button class="secondary" style="width:auto;" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">Ver alumnos</button></td>
-            </tr>
-          `).join('') || '<tr><td colspan="5">No hay clases programadas en ese rango.</td></tr>'}
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Clase</th><th>Fecha</th><th>Hora</th><th>Ocupación</th><th></th></tr></thead>
+          <tbody>
+            ${resumen.map(c => `
+              <tr>
+                <td>${escapeHtml(c.nombre_tipo)}</td>
+                <td>${c.fecha}</td>
+                <td>${c.hora_inicio}</td>
+                <td>${c.ocupados} / ${c.cupo_maximo}</td>
+                <td><button class="secondary" style="width:auto;" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">Ver alumnos</button></td>
+              </tr>
+            `).join('') || '<tr><td colspan="5">No hay clases programadas en ese rango.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     `;
   } catch (err) {
     cont.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
@@ -502,25 +502,27 @@ async function buscarReservas() {
 
 async function verReservas(id_clase, etiqueta) {
   const detalle = document.getElementById('detalle-reservas');
-  detalle.innerHTML = '<p>Cargando...</p>';
+  detalle.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
 
   try {
     const reservas = await adminCall('adminGetReservasPorClase', { id_clase });
     detalle.innerHTML = `
       <h3>${etiqueta}</h3>
-      <table>
-        <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado</th></tr></thead>
-        <tbody>
-          ${reservas.map(r => `
-            <tr>
-              <td>${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</td>
-              <td>${escapeHtml(r.correo)}</td>
-              <td>${escapeHtml(r.telefono)}</td>
-              <td><span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span></td>
-            </tr>
-          `).join('') || '<tr><td colspan="4">Sin reservas aún.</td></tr>'}
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado</th></tr></thead>
+          <tbody>
+            ${reservas.map(r => `
+              <tr>
+                <td>${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</td>
+                <td>${escapeHtml(r.correo)}</td>
+                <td>${escapeHtml(r.telefono)}</td>
+                <td><span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span></td>
+              </tr>
+            `).join('') || '<tr><td colspan="4">Sin reservas aún.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     `;
   } catch (err) {
     detalle.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
@@ -545,7 +547,7 @@ let cachePlanes = [];
 
 async function renderTabPlanes() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
 
   try {
     cachePlanes = await adminCall('adminGetPlanes');
@@ -629,7 +631,7 @@ let suscripcionEnEdicion = null;
 
 async function renderTabAlumnos() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
   filtroEstadoPago = 'todos';
   alumnoEnEdicion = null;
   suscripcionEnEdicion = null;
@@ -869,7 +871,7 @@ async function asignarPlan() {
 
 async function renderTabConfig() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
 
   try {
     const datosBancarios = await adminCall('adminGetDatosBancarios');
