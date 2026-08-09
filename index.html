@@ -23,35 +23,9 @@
     </div>
   </div>
 
-  <!-- Modal de reserva -->
+  <!-- Modal de reserva (contenido 100% dinámico, controlado por app.js) -->
   <div id="modal-reserva" class="modal-backdrop" style="display:none;">
-    <div class="modal">
-      <h3 id="modal-titulo">Reservar clase</h3>
-      <p id="modal-detalle" style="margin-bottom:18px;"></p>
-      <form id="form-reserva">
-        <div class="field">
-          <label>Nombre</label>
-          <input type="text" id="f-nombre" required>
-        </div>
-        <div class="field">
-          <label>Apellido</label>
-          <input type="text" id="f-apellido" required>
-        </div>
-        <div class="field">
-          <label>Correo</label>
-          <input type="email" id="f-correo" required>
-        </div>
-        <div class="field">
-          <label>Teléfono</label>
-          <input type="tel" id="f-telefono" required>
-        </div>
-        <div id="form-msg"></div>
-        <div style="display:flex; gap:10px;">
-          <button type="button" class="secondary" onclick="cerrarModal()">Cancelar</button>
-          <button type="submit">Confirmar reserva</button>
-        </div>
-      </form>
-    </div>
+    <div class="modal" id="modal-reserva-inner"></div>
   </div>
 
   <!-- Modal de cancelación (vía link del email) -->

@@ -473,30 +473,35 @@ async function renderTabPlanes() {
     cachePlanes = await adminCall('adminGetPlanes');
 
     el.innerHTML = `
-      <div class="inline-form">
-        <div class="field">
-          <label>Nombre</label>
-          <input type="text" id="p-nombre" placeholder="Ej: 8 clases">
+      <div class="inline-form" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:140px;">
+            <label>Nombre</label>
+            <input type="text" id="p-nombre" placeholder="Ej: 8 clases">
+          </div>
+          <div class="field" style="flex:1; min-width:120px;">
+            <label>Clases incluidas</label>
+            <input type="number" id="p-clases" placeholder="8">
+          </div>
+          <div class="field" style="flex:1; min-width:120px;">
+            <label>Precio (CLP)</label>
+            <input type="number" id="p-precio" placeholder="60000">
+          </div>
+          <div class="field" style="flex:1; min-width:120px;">
+            <label>Duración (días)</label>
+            <input type="number" id="p-duracion" placeholder="30" value="30">
+          </div>
         </div>
-        <div class="field">
-          <label>Clases incluidas</label>
-          <input type="number" id="p-clases" placeholder="8">
-        </div>
-        <div class="field">
-          <label>Precio (CLP)</label>
-          <input type="number" id="p-precio" placeholder="60000">
-        </div>
-        <div class="field">
-          <label>Duración (días)</label>
-          <input type="number" id="p-duracion" placeholder="30" value="30">
-        </div>
+        <label class="dia-check" style="width:fit-content;">
+          <input type="checkbox" id="p-gratis"> Es plan gratis (1 uso por alumno, ideal para clase de prueba)
+        </label>
         <button onclick="crearPlan()">Agregar plan</button>
       </div>
       <div id="planes-msg"></div>
       <div class="planes-grid">
         ${cachePlanes.map(p => `
           <div class="plan-card">
-            <div class="nombre">${escapeHtml(p.nombre)}</div>
+            <div class="nombre">${escapeHtml(p.nombre)} ${p.es_gratis ? '<span class="pill activo">Gratis</span>' : ''}</div>
             <div class="detalle">${p.clases_incluidas} clases · $${formatearPrecio(p.precio)} · ${p.duracion_dias} días</div>
             <span class="pill ${p.activo ? 'activo' : 'inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
             <div class="acciones">
@@ -516,10 +521,11 @@ async function crearPlan() {
   const clases_incluidas = Number(document.getElementById('p-clases').value);
   const precio = Number(document.getElementById('p-precio').value);
   const duracion_dias = Number(document.getElementById('p-duracion').value) || 30;
+  const es_gratis = document.getElementById('p-gratis').checked;
   const msg = document.getElementById('planes-msg');
 
   try {
-    await adminCall('adminCrearPlan', { nombre, clases_incluidas, precio, duracion_dias });
+    await adminCall('adminCrearPlan', { nombre, clases_incluidas, precio, duracion_dias, es_gratis });
     msg.innerHTML = `<div class="msg ok">Plan creado.</div>`;
     renderTabPlanes();
   } catch (err) {
@@ -538,6 +544,8 @@ function formatearPrecio(precio) {
 
 // ---------- Tab: Alumnos ----------
 
+let cacheAlumnos = [];
+
 async function renderTabAlumnos() {
   const el = document.getElementById('tab-content');
   el.innerHTML = '<p>Cargando...</p>';
@@ -545,9 +553,28 @@ async function renderTabAlumnos() {
   try {
     if (!cachePlanes.length) cachePlanes = await adminCall('adminGetPlanes');
     const planesActivos = cachePlanes.filter(p => p.activo);
-    const alumnos = await adminCall('adminGetAlumnos');
+    cacheAlumnos = await adminCall('adminGetAlumnos');
+    const datosBancarios = await adminCall('adminGetDatosBancarios');
 
     el.innerHTML = `
+      <h3 style="margin-bottom:10px;">Datos de transferencia</h3>
+      <div class="inline-form" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:140px;"><label>Banco</label><input type="text" id="b-banco" value="${escapeHtml(datosBancarios.banco)}"></div>
+          <div class="field" style="flex:1; min-width:120px;"><label>Tipo de cuenta</label><input type="text" id="b-tipo" value="${escapeHtml(datosBancarios.tipo_cuenta)}"></div>
+          <div class="field" style="flex:1; min-width:140px;"><label>N° de cuenta</label><input type="text" id="b-numero" value="${escapeHtml(datosBancarios.numero_cuenta)}"></div>
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:140px;"><label>RUT</label><input type="text" id="b-rut" value="${escapeHtml(datosBancarios.rut)}"></div>
+          <div class="field" style="flex:1; min-width:140px;"><label>Nombre titular</label><input type="text" id="b-titular" value="${escapeHtml(datosBancarios.nombre_titular)}"></div>
+          <div class="field" style="flex:1; min-width:180px;"><label>Correo confirmación</label><input type="email" id="b-correo" value="${escapeHtml(datosBancarios.correo_confirmacion)}"></div>
+        </div>
+        <p style="font-size:12px; color:var(--text-dim);">Este correo recibe además el aviso cada vez que alguien contrata un plan pago y queda pendiente de pago.</p>
+        <button onclick="guardarDatosBancarios()">Guardar datos bancarios</button>
+      </div>
+      <div id="bancarios-msg"></div>
+
+      <h3 style="margin:28px 0 10px;">Asignar plan manualmente</h3>
       <div class="inline-form" style="flex-direction:column; align-items:stretch;">
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
           <div class="field" style="flex:1; min-width:160px;">
@@ -567,37 +594,93 @@ async function renderTabAlumnos() {
             <input type="tel" id="al-telefono">
           </div>
         </div>
-        <div class="field" style="max-width:280px;">
-          <label>Plan</label>
-          <select id="al-plan">
-            ${planesActivos.map(p => `<option value="${p.id_plan}">${escapeHtml(p.nombre)} — $${formatearPrecio(p.precio)}</option>`).join('')}
-          </select>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:200px;">
+            <label>Plan</label>
+            <select id="al-plan">
+              ${planesActivos.map(p => `<option value="${p.id_plan}">${escapeHtml(p.nombre)} — $${formatearPrecio(p.precio)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field" style="flex:1; min-width:160px;">
+            <label>Estado de pago</label>
+            <select id="al-estado-pago">
+              <option value="pagado">Pagado</option>
+              <option value="pendiente">Pendiente</option>
+            </select>
+          </div>
         </div>
-        <button onclick="asignarPlan()">Asignar / renovar plan</button>
+        <button onclick="asignarPlan()">Asignar plan</button>
       </div>
       <div id="alumnos-msg"></div>
-      <div class="alumnos-grid">
-        ${alumnos.map(a => `
-          <div class="alumno-card">
-            <div class="nombre">${escapeHtml(a.nombre)} ${escapeHtml(a.apellido)}</div>
-            <div class="detalle">${escapeHtml(a.correo)}</div>
-            <div class="detalle">${escapeHtml(a.telefono || '—')}</div>
-            <div class="uso ${a.clases_usadas > a.clases_incluidas ? 'excede' : ''}">
-              ${escapeHtml(a.nombre_plan)} — <span class="num">${a.clases_usadas}/${a.clases_incluidas}</span> clases usadas
-            </div>
-            <div class="detalle">Vence: ${a.fecha_fin}</div>
-            <span class="pill ${a.vigente ? 'activo' : 'inactivo'}">${a.vigente ? 'Vigente' : 'Vencido'}</span>
-            <div class="acciones">
-              <button class="secondary" onclick="prellenarRenovacion('${a.id_alumno}')">Renovar</button>
-            </div>
-          </div>
-        `).join('') || '<p style="color:var(--text-dim);">Todavía no hay alumnos con plan asignado.</p>'}
+
+      <h3 style="margin:28px 0 10px;">Alumnos</h3>
+      <div class="field" style="max-width:320px;">
+        <input type="text" id="al-buscador" placeholder="Buscar por nombre o correo..." oninput="filtrarAlumnos()">
       </div>
+      <div id="alumnos-lista" style="margin-top:14px;"></div>
     `;
 
-    window.cacheAlumnos = alumnos;
+    renderListaAlumnos(cacheAlumnos);
   } catch (err) {
     el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function filtrarAlumnos() {
+  const q = document.getElementById('al-buscador').value.trim().toLowerCase();
+  if (!q) { renderListaAlumnos(cacheAlumnos); return; }
+
+  const filtrados = cacheAlumnos.filter(a =>
+    (a.nombre + ' ' + a.apellido).toLowerCase().includes(q) ||
+    a.correo.toLowerCase().includes(q)
+  );
+  renderListaAlumnos(filtrados);
+}
+
+function renderListaAlumnos(lista) {
+  const cont = document.getElementById('alumnos-lista');
+  if (!cont) return;
+
+  cont.innerHTML = lista.map(a => `
+    <div class="alumno-card" style="margin-bottom:14px;">
+      <div class="nombre">${escapeHtml(a.nombre)} ${escapeHtml(a.apellido)}</div>
+      <div class="detalle">${escapeHtml(a.correo)} · ${escapeHtml(a.telefono || '—')}</div>
+      ${a.suscripciones.map(s => `
+        <div class="susc-item">
+          <div class="info">
+            <strong>${escapeHtml(s.nombre_plan)}</strong> — ${s.clases_usadas}/${s.clases_incluidas} clases ·
+            ${s.fecha_inicio} al ${s.fecha_fin}
+            <span class="pill ${s.vigente ? 'activo' : 'inactivo'}">${s.vigente ? 'Vigente' : 'Vencido'}</span>
+            <span class="pill ${s.estado_pago === 'pagado' ? 'activo' : 'inactivo'}">${s.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'}</span>
+          </div>
+          <button class="secondary" style="width:auto;" onclick="marcarPago('${s.id_suscripcion}', '${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}')">
+            Marcar ${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}
+          </button>
+        </div>
+      `).join('') || '<p style="color:var(--text-dim); font-size:13px; margin-top:8px;">Sin suscripciones registradas.</p>'}
+    </div>
+  `).join('') || '<p style="color:var(--text-dim);">No se encontraron alumnos.</p>';
+}
+
+async function marcarPago(id_suscripcion, estado_pago) {
+  await adminCall('adminMarcarPago', { id_suscripcion, estado_pago });
+  renderTabAlumnos();
+}
+
+async function guardarDatosBancarios() {
+  const msg = document.getElementById('bancarios-msg');
+  try {
+    await adminCall('adminGuardarDatosBancarios', {
+      banco: document.getElementById('b-banco').value,
+      tipo_cuenta: document.getElementById('b-tipo').value,
+      numero_cuenta: document.getElementById('b-numero').value,
+      rut: document.getElementById('b-rut').value,
+      nombre_titular: document.getElementById('b-titular').value,
+      correo_confirmacion: document.getElementById('b-correo').value
+    });
+    msg.innerHTML = `<div class="msg ok">Datos bancarios guardados.</div>`;
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -607,24 +690,14 @@ async function asignarPlan() {
   const apellido = document.getElementById('al-apellido').value;
   const telefono = document.getElementById('al-telefono').value;
   const id_plan = document.getElementById('al-plan').value;
+  const estado_pago = document.getElementById('al-estado-pago').value;
   const msg = document.getElementById('alumnos-msg');
 
   try {
-    const resultado = await adminCall('adminAsignarPlan', { correo, nombre, apellido, telefono, id_plan });
-    msg.innerHTML = `<div class="msg ok">${resultado.actualizado ? 'Plan renovado.' : 'Alumno y plan creados.'}</div>`;
+    await adminCall('adminAsignarPlan', { correo, nombre, apellido, telefono, id_plan, estado_pago });
+    msg.innerHTML = `<div class="msg ok">Plan asignado.</div>`;
     renderTabAlumnos();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
-}
-
-function prellenarRenovacion(id_alumno) {
-  const a = (window.cacheAlumnos || []).find(x => x.id_alumno === id_alumno);
-  if (!a) return;
-  document.getElementById('al-correo').value = a.correo;
-  document.getElementById('al-nombre').value = a.nombre;
-  document.getElementById('al-apellido').value = a.apellido;
-  document.getElementById('al-telefono').value = a.telefono;
-  document.getElementById('al-plan').value = a.id_plan;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
