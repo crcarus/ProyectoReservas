@@ -20,6 +20,7 @@
 
 body {
   margin: 0;
+  overflow-x: hidden;
   background-color: var(--bg);
   background-image:
     radial-gradient(circle at 15% 0%, rgba(200, 240, 0, 0.06), transparent 45%),
@@ -30,6 +31,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@media (max-width: 400px) {
+  header.top .brand { font-size: 32px; }
+  .clover { width: 26px; height: 26px; font-size: 12px; }
+  .brand-name { font-size: 14px; }
+}
+
 .wrap {
   max-width: 880px;
   margin: 0 auto;
@@ -38,13 +45,21 @@ body {
 
 header.top {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   border-bottom: 3px solid var(--accent);
-  padding-bottom: 16px;
+  padding: 14px 0 16px;
   margin-bottom: 32px;
   flex-wrap: wrap;
   gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg);
+}
+
+header.top > button {
+  flex-shrink: 0;
 }
 
 .brand-row {
