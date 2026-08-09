@@ -113,37 +113,51 @@ async function toggleTipo(id_tipo, nuevoActivo) {
 // ---------- Tab: Horarios ----------
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 let cacheHorarios = [];
 let horarioEnEdicion = null; // id_horario de la fila en modo edición, o null
+let horasSeleccionadas = []; // horas agregadas como chips en el formulario de creación masiva
 
 async function renderTabHorarios() {
   const el = document.getElementById('tab-content');
   el.innerHTML = '<p>Cargando...</p>';
+  horasSeleccionadas = [];
 
   try {
     if (!cacheTipos.length) cacheTipos = await adminCall('adminGetTiposDeClase');
     cacheHorarios = await adminCall('adminGetHorarios');
 
     el.innerHTML = `
-      <div class="inline-form">
-        <div class="field">
+      <div class="inline-form" style="flex-direction:column; align-items:stretch;">
+        <div class="field" style="max-width:280px;">
           <label>Tipo de clase</label>
           <select id="h-tipo">
             ${cacheTipos.map(t => `<option value="${t.id_tipo}">${escapeHtml(t.nombre)}</option>`).join('')}
           </select>
         </div>
+
         <div class="field">
-          <label>Día</label>
-          <select id="h-dia">
-            ${DIAS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}
-          </select>
+          <label>Días</label>
+          <div class="dias-checkboxes">
+            ${DIAS_CORTO.map((d, i) => `
+              <label class="dia-check">
+                <input type="checkbox" class="dia-checkbox" value="${i}"> ${d}
+              </label>
+            `).join('')}
+          </div>
         </div>
+
         <div class="field">
-          <label>Hora inicio</label>
-          <input type="time" id="h-hora">
+          <label>Horas</label>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <input type="time" id="h-hora-nueva" style="max-width:160px;">
+            <button type="button" style="width:auto;" onclick="agregarHoraChip()">+ Agregar hora</button>
+          </div>
+          <div id="horas-chips" class="chips-container"></div>
         </div>
-        <button onclick="crearHorario()">Agregar horario</button>
+
+        <button onclick="crearHorariosMasivo()">Agregar horarios</button>
       </div>
       <div id="horarios-msg"></div>
       <table>
@@ -153,8 +167,63 @@ async function renderTabHorarios() {
         </tbody>
       </table>
     `;
+
+    renderChipsHoras();
   } catch (err) {
     el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function agregarHoraChip() {
+  const input = document.getElementById('h-hora-nueva');
+  const val = input.value;
+  if (!val) return;
+  if (!horasSeleccionadas.includes(val)) {
+    horasSeleccionadas.push(val);
+    horasSeleccionadas.sort();
+  }
+  input.value = '';
+  renderChipsHoras();
+}
+
+function quitarHoraChip(hora) {
+  horasSeleccionadas = horasSeleccionadas.filter(h => h !== hora);
+  renderChipsHoras();
+}
+
+function renderChipsHoras() {
+  const cont = document.getElementById('horas-chips');
+  if (!cont) return;
+  cont.innerHTML = horasSeleccionadas.length
+    ? horasSeleccionadas.map(h => `
+        <span class="chip">${h} <button type="button" onclick="quitarHoraChip('${h}')">&times;</button></span>
+      `).join('')
+    : '<span style="color:var(--text-dim); font-size:13px;">Ninguna hora agregada aún.</span>';
+}
+
+async function crearHorariosMasivo() {
+  const id_tipo = document.getElementById('h-tipo').value;
+  const dias = Array.from(document.querySelectorAll('.dia-checkbox:checked')).map(cb => Number(cb.value));
+  const msg = document.getElementById('horarios-msg');
+
+  if (!dias.length) {
+    msg.innerHTML = `<div class="msg error">Selecciona al menos un día.</div>`;
+    return;
+  }
+  if (!horasSeleccionadas.length) {
+    msg.innerHTML = `<div class="msg error">Agrega al menos una hora.</div>`;
+    return;
+  }
+
+  try {
+    const resultado = await adminCall('adminCrearHorariosMasivo', { id_tipo, dias, horas: horasSeleccionadas });
+    const detalle = resultado.omitidos
+      ? ` (se omitieron ${resultado.omitidos} que ya existían)`
+      : '';
+    msg.innerHTML = `<div class="msg ok">Se crearon ${resultado.creados} horarios${detalle}.</div>`;
+    renderTabHorarios();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -222,21 +291,6 @@ async function guardarEdicionHorario(id_horario) {
     renderTabHorarios();
   } catch (err) {
     alert(err.message);
-  }
-}
-
-async function crearHorario() {
-  const id_tipo = document.getElementById('h-tipo').value;
-  const dia_semana = Number(document.getElementById('h-dia').value);
-  const hora_inicio = document.getElementById('h-hora').value;
-  const msg = document.getElementById('horarios-msg');
-
-  try {
-    await adminCall('adminCrearHorario', { id_tipo, dia_semana, hora_inicio });
-    msg.innerHTML = `<div class="msg ok">Horario agregado.</div>`;
-    renderTabHorarios();
-  } catch (err) {
-    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
 }
 
