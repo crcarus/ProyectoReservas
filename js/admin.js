@@ -486,55 +486,106 @@ async function generarClases() {
 
 // ---------- Tab: Reservas ----------
 
+let reservasMesActual = null;
+let reservasClasesDelMes = [];
+let reservasDiaSeleccionado = null;
+
 async function renderTabReservas() {
   const el = document.getElementById('tab-content');
-  const hoy = new Date().toISOString().slice(0, 10);
-  const enDosSemanas = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
+  reservasMesActual = primerDiaDelMesR(new Date());
+  reservasDiaSeleccionado = null;
+  await cargarMesReservasYRenderizar();
+}
+
+async function cargarMesReservasYRenderizar() {
+  const el = document.getElementById('tab-content');
+  el.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
+
+  try {
+    const desde = isoDateR(reservasMesActual);
+    const hasta = isoDateR(ultimoDiaDelMesR(reservasMesActual));
+    reservasClasesDelMes = await adminCall('adminGetResumenClases', { desde, hasta });
+    renderCalendarioReservas();
+  } catch (err) {
+    el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function cambiarMesReservas(delta) {
+  reservasMesActual = new Date(reservasMesActual.getFullYear(), reservasMesActual.getMonth() + delta, 1);
+  reservasDiaSeleccionado = null;
+  cargarMesReservasYRenderizar();
+}
+
+function renderCalendarioReservas() {
+  const el = document.getElementById('tab-content');
+  const diasConClases = new Set(reservasClasesDelMes.map(c => c.fecha));
+  const primerDia = reservasMesActual.getDay();
+  const totalDias = ultimoDiaDelMesR(reservasMesActual).getDate();
+
+  let celdas = '';
+  for (let i = 0; i < primerDia; i++) {
+    celdas += `<div class="calendar-day vacio"></div>`;
+  }
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const fecha = new Date(reservasMesActual.getFullYear(), reservasMesActual.getMonth(), dia);
+    const fechaISO = isoDateR(fecha);
+    const disponible = diasConClases.has(fechaISO);
+    const esHoy = fechaISO === isoDateR(new Date());
+    celdas += `
+      <div class="calendar-day ${disponible ? 'disponible' : ''} ${esHoy ? 'hoy' : ''}"
+           ${disponible ? `onclick="seleccionarDiaReservas('${fechaISO}')"` : ''}>
+        ${dia}
+      </div>
+    `;
+  }
 
   el.innerHTML = `
-    <div class="inline-form">
-      <div class="field"><label>Desde</label><input type="date" id="r-desde" value="${hoy}"></div>
-      <div class="field"><label>Hasta</label><input type="date" id="r-hasta" value="${enDosSemanas}"></div>
-      <button onclick="buscarReservas()">Buscar</button>
+    <div class="calendar-header">
+      <button onclick="cambiarMesReservas(-1)">&larr;</button>
+      <div class="calendar-month-label">${formatearMesLargoR(reservasMesActual)}</div>
+      <button onclick="cambiarMesReservas(1)">&rarr;</button>
     </div>
-    <div id="reservas-tabla"><div class="loading-state"><div class="spinner"></div> Cargando...</div></div>
+    <div class="calendar-dow-row">
+      ${DIAS_CORTO.map(d => `<div class="calendar-dow">${d}</div>`).join('')}
+    </div>
+    <div class="calendar-grid">${celdas}</div>
+    <div id="reservas-horas" style="margin-top:20px;"></div>
     <div id="detalle-reservas"></div>
   `;
 
-  await buscarReservas();
+  if (reservasDiaSeleccionado) renderHorasReservas();
 }
 
-async function buscarReservas() {
-  const desde = document.getElementById('r-desde').value;
-  const hasta = document.getElementById('r-hasta').value;
-  const cont = document.getElementById('reservas-tabla');
-  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
+function seleccionarDiaReservas(fechaISO) {
+  reservasDiaSeleccionado = fechaISO;
+  renderHorasReservas();
   document.getElementById('detalle-reservas').innerHTML = '';
+}
 
-  try {
-    const resumen = await adminCall('adminGetResumenClases', { desde, hasta });
+function renderHorasReservas() {
+  const cont = document.getElementById('reservas-horas');
+  if (!cont) return;
 
-    cont.innerHTML = `
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Clase</th><th>Fecha</th><th>Hora</th><th>Ocupación</th><th></th></tr></thead>
-          <tbody>
-            ${resumen.map(c => `
-              <tr>
-                <td>${escapeHtml(c.nombre_tipo)}</td>
-                <td>${c.fecha}</td>
-                <td>${c.hora_inicio}</td>
-                <td>${c.ocupados} / ${c.cupo_maximo}</td>
-                <td><button class="secondary" style="width:auto;" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">Ver alumnos</button></td>
-              </tr>
-            `).join('') || '<tr><td colspan="5">No hay clases programadas en ese rango.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
-  } catch (err) {
-    cont.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
-  }
+  const clasesDelDia = reservasClasesDelMes
+    .filter(c => c.fecha === reservasDiaSeleccionado)
+    .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+  cont.innerHTML = `
+    <div class="screen-header" style="margin-bottom:14px;">
+      <div class="nombre-tipo">${formatearFechaLargaR(reservasDiaSeleccionado)}</div>
+      <div class="meta">Selecciona un horario para ver los alumnos</div>
+    </div>
+    <div class="horas-list">
+      ${clasesDelDia.map(c => `
+        <button type="button" class="hora-btn" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">
+          <span class="hora">${c.hora_inicio}</span>
+          <span class="cupos-txt">${escapeHtml(c.nombre_tipo)} · ${c.ocupados}/${c.cupo_maximo}</span>
+        </button>
+      `).join('') || '<p style="color:var(--text-dim);">No hay clases este día.</p>'}
+    </div>
+  `;
 }
 
 async function verReservas(id_clase, etiqueta) {
@@ -544,22 +595,24 @@ async function verReservas(id_clase, etiqueta) {
   try {
     const reservas = await adminCall('adminGetReservasPorClase', { id_clase });
     detalle.innerHTML = `
-      <h3>${etiqueta}</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado</th></tr></thead>
-          <tbody>
-            ${reservas.map(r => `
-              <tr>
-                <td>${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</td>
-                <td>${escapeHtml(r.correo)}</td>
-                <td>${escapeHtml(r.telefono)}</td>
-                <td><span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span></td>
-              </tr>
-            `).join('') || '<tr><td colspan="4">Sin reservas aún.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
+      <h3 style="margin-top:20px;">${etiqueta}</h3>
+      ${reservas.map(r => `
+        <div class="alumno-card" style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div class="nombre">${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</div>
+              <div class="detalle">${escapeHtml(r.correo)} · ${escapeHtml(r.telefono)}</div>
+            </div>
+            <span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span>
+          </div>
+          ${r.saldo_plan ? `
+            <div class="uso ${r.saldo_plan.clases_usadas > r.saldo_plan.clases_incluidas ? 'excede' : ''}" style="margin-top:8px;">
+              ${escapeHtml(r.saldo_plan.nombre_plan)} — <span class="num">${r.saldo_plan.clases_incluidas - r.saldo_plan.clases_usadas} de ${r.saldo_plan.clases_incluidas}</span> clases disponibles
+              ${!r.saldo_plan.vigente ? '<span class="pill inactivo">Plan vencido</span>' : ''}
+            </div>
+          ` : '<div class="detalle" style="margin-top:8px; color:var(--danger);">Sin plan registrado</div>'}
+        </div>
+      `).join('') || '<p style="color:var(--text-dim);">Sin reservas aún.</p>'}
     `;
   } catch (err) {
     detalle.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
@@ -570,6 +623,20 @@ function badgeAlertaPlan(alerta) {
   if (alerta === 'sin_plan') return '<span class="badge-alerta">Sin plan</span>';
   if (alerta === 'excede_plan') return '<span class="badge-alerta">Excede plan</span>';
   return '';
+}
+
+// Helpers de fecha propios de esta pestaña (evitan chocar con nombres de otras pestañas)
+function primerDiaDelMesR(date) { return new Date(date.getFullYear(), date.getMonth(), 1); }
+function ultimoDiaDelMesR(date) { return new Date(date.getFullYear(), date.getMonth() + 1, 0); }
+function isoDateR(date) {
+  const d = new Date(date);
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+function formatearMesLargoR(date) { return date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }); }
+function formatearFechaLargaR(fechaISO) {
+  const d = new Date(fechaISO + 'T00:00:00');
+  return d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function escapeHtml(str) {
@@ -825,7 +892,15 @@ function renderSuscripcionItem(s) {
               <option value="pendiente" ${s.estado_pago === 'pendiente' ? 'selected' : ''}>Pendiente</option>
             </select>
           </div>
+          <div class="field">
+            <label>Clases incluidas</label>
+            <input type="number" id="edit-susc-clases" value="${s.clases_incluidas}">
+          </div>
         </div>
+        <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">
+          El plan "${escapeHtml(s.nombre_plan)}" da ${s.clases_incluidas_plan} clases por defecto.
+          Cambia este número solo para esta suscripción puntual (ej. clase de cortesía por enfermedad).
+        </p>
         <div id="edit-susc-msg"></div>
         <div style="display:flex; gap:8px; margin-top:10px;">
           <button style="width:auto;" onclick="guardarEdicionSuscripcion(this, '${s.id_suscripcion}')">Guardar</button>
@@ -884,7 +959,8 @@ async function guardarEdicionSuscripcion(btn, id_suscripcion) {
       id_plan: document.getElementById('edit-susc-plan').value,
       fecha_inicio: document.getElementById('edit-susc-inicio').value,
       fecha_fin: document.getElementById('edit-susc-fin').value,
-      estado_pago: document.getElementById('edit-susc-pago').value
+      estado_pago: document.getElementById('edit-susc-pago').value,
+      clases_incluidas_override: document.getElementById('edit-susc-clases').value
     });
     suscripcionEnEdicion = null;
     renderTabAlumnos();
