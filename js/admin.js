@@ -122,12 +122,14 @@ const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0]; // Lunes primero, Domingo al final
 let cacheHorarios = [];
 let horarioSeleccionado = null; // id_horario abierto en el panel de edición
 let horasSeleccionadas = []; // horas agregadas como chips en el formulario de creación masiva
+let diaEnEdicion = null; // `${id_tipo}|${dia}` del día abierto en el panel de gestión, o null
 
 async function renderTabHorarios() {
   const el = document.getElementById('tab-content');
   el.innerHTML = '<p>Cargando...</p>';
   horasSeleccionadas = [];
   horarioSeleccionado = null;
+  diaEnEdicion = null;
 
   try {
     if (!cacheTipos.length) cacheTipos = await adminCall('adminGetTiposDeClase');
@@ -195,6 +197,9 @@ function renderListaHorarios() {
         .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
       if (!horariosDelDia.length) return '';
 
+      const clave = tipo.id_tipo + '|' + dia;
+      const editando = diaEnEdicion === clave;
+
       return `
         <div class="horario-dia-row">
           <div class="horario-dia-label">${DIAS_CORTO[dia]}</div>
@@ -205,7 +210,9 @@ function renderListaHorarios() {
               </button>
             `).join('')}
           </div>
+          <button type="button" class="secondary" style="width:auto;" onclick="toggleEditarDia('${clave}')">${editando ? 'Cerrar' : 'Editar día'}</button>
         </div>
+        ${editando ? renderPanelEdicionDia(tipo.id_tipo, dia, horariosDelDia) : ''}
       `;
     }).join('');
 
@@ -216,6 +223,58 @@ function renderListaHorarios() {
       </div>
     `;
   }).join('');
+}
+
+function toggleEditarDia(clave) {
+  diaEnEdicion = diaEnEdicion === clave ? null : clave;
+  renderListaHorarios();
+}
+
+function renderPanelEdicionDia(id_tipo, dia, horariosDelDia) {
+  return `
+    <div class="dia-editor-panel">
+      <div class="dia-editor-title">Gestionar ${DIAS[dia]}</div>
+      <div class="dia-editor-checks">
+        ${horariosDelDia.map(h => `
+          <label class="dia-check">
+            <input type="checkbox" class="dia-editor-check" value="${h.id_horario}"> ${h.hora_inicio}${h.activo ? '' : ' (inactivo)'}
+          </label>
+        `).join('')}
+      </div>
+      <button type="button" class="secondary" style="width:auto; margin-top:10px;" onclick="desactivarSeleccionadasDia()">Desactivar seleccionadas</button>
+      <div style="display:flex; gap:10px; align-items:center; margin-top:14px;">
+        <input type="time" id="dia-editor-hora">
+        <button type="button" style="width:auto;" onclick="agregarHoraADia('${id_tipo}', ${dia})">+ Agregar hora a este día</button>
+      </div>
+      <div id="dia-editor-msg"></div>
+    </div>
+  `;
+}
+
+async function desactivarSeleccionadasDia() {
+  const ids = Array.from(document.querySelectorAll('.dia-editor-check:checked')).map(cb => cb.value);
+  if (!ids.length) return;
+
+  for (const id_horario of ids) {
+    await adminCall('adminEliminarHorario', { id_horario });
+  }
+  diaEnEdicion = null;
+  renderTabHorarios();
+}
+
+async function agregarHoraADia(id_tipo, dia) {
+  const input = document.getElementById('dia-editor-hora');
+  const msg = document.getElementById('dia-editor-msg');
+  const hora = input.value;
+  if (!hora) return;
+
+  try {
+    await adminCall('adminCrearHorariosMasivo', { id_tipo, dias: [dia], horas: [hora] });
+    diaEnEdicion = id_tipo + '|' + dia;
+    renderTabHorarios();
+  } catch (err) {
+    if (msg) msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
 }
 
 function seleccionarHorarioParaEditar(id_horario) {
@@ -394,14 +453,33 @@ async function generarClases() {
 
 async function renderTabReservas() {
   const el = document.getElementById('tab-content');
-  el.innerHTML = '<p>Cargando...</p>';
+  const hoy = new Date().toISOString().slice(0, 10);
+  const enDosSemanas = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+
+  el.innerHTML = `
+    <div class="inline-form">
+      <div class="field"><label>Desde</label><input type="date" id="r-desde" value="${hoy}"></div>
+      <div class="field"><label>Hasta</label><input type="date" id="r-hasta" value="${enDosSemanas}"></div>
+      <button onclick="buscarReservas()">Buscar</button>
+    </div>
+    <div id="reservas-tabla"><p>Cargando...</p></div>
+    <div id="detalle-reservas"></div>
+  `;
+
+  await buscarReservas();
+}
+
+async function buscarReservas() {
+  const desde = document.getElementById('r-desde').value;
+  const hasta = document.getElementById('r-hasta').value;
+  const cont = document.getElementById('reservas-tabla');
+  cont.innerHTML = '<p>Cargando...</p>';
+  document.getElementById('detalle-reservas').innerHTML = '';
 
   try {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const enDosSemanas = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
-    const resumen = await adminCall('adminGetResumenClases', { desde: hoy, hasta: enDosSemanas });
+    const resumen = await adminCall('adminGetResumenClases', { desde, hasta });
 
-    el.innerHTML = `
+    cont.innerHTML = `
       <table>
         <thead><tr><th>Clase</th><th>Fecha</th><th>Hora</th><th>Ocupación</th><th></th></tr></thead>
         <tbody>
@@ -413,13 +491,12 @@ async function renderTabReservas() {
               <td>${c.ocupados} / ${c.cupo_maximo}</td>
               <td><button class="secondary" style="width:auto;" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">Ver alumnos</button></td>
             </tr>
-          `).join('')}
+          `).join('') || '<tr><td colspan="5">No hay clases programadas en ese rango.</td></tr>'}
         </tbody>
       </table>
-      <div id="detalle-reservas"></div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    cont.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
 }
 

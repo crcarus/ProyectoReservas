@@ -537,6 +537,60 @@ button.danger { background: var(--danger); color: #111; }
   text-decoration: line-through;
 }
 
+.reserva-resumen {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.reserva-resumen .reserva-resumen-clase {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+
+.reserva-resumen .reserva-resumen-fecha {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: capitalize;
+  margin-top: 4px;
+}
+
+.reserva-resumen .reserva-resumen-hora {
+  font-family: var(--font-display);
+  font-size: 34px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.alumno-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.alumno-resumen span:first-child {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.alumno-resumen strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.alumno-resumen span:last-child {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 .planes-select-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -604,6 +658,27 @@ button.danger { background: var(--danger); color: #111; }
 
 .susc-item .info { font-size: 12px; color: var(--text-dim); }
 .susc-item .info strong { color: var(--text); }
+.dia-editor-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 4px 0 10px;
+}
+
+.dia-editor-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.dia-editor-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .horario-editor-card {
   background: var(--bg-elevated);
   border: 1px solid var(--accent-dim);

@@ -191,12 +191,22 @@ function modalInner(html) {
   document.getElementById('modal-reserva-inner').innerHTML = html;
 }
 
+function resumenClaseHtml() {
+  return `
+    <div class="reserva-resumen">
+      <div class="reserva-resumen-clase">${escapeHtml(claseSeleccionada.nombre_tipo)}</div>
+      <div class="reserva-resumen-fecha">${formatearFechaLarga(claseSeleccionada.fecha)}</div>
+      <div class="reserva-resumen-hora">${claseSeleccionada.hora_inicio} hrs</div>
+    </div>
+  `;
+}
+
 // Paso 1: datos del alumno
 
 function renderPasoDatos() {
   modalInner(`
-    <h3>${escapeHtml(claseSeleccionada.nombre_tipo)}</h3>
-    <p style="margin-bottom:18px;">${formatearFechaLarga(claseSeleccionada.fecha)} — ${claseSeleccionada.hora_inicio} hrs</p>
+    ${resumenClaseHtml()}
+    <h3 style="margin-bottom:14px;">Tus datos</h3>
     <form id="form-datos">
       <div class="field"><label>Nombre</label><input type="text" id="f-nombre" required></div>
       <div class="field"><label>Apellido</label><input type="text" id="f-apellido" required></div>
@@ -248,8 +258,13 @@ function renderPasoConCupo() {
   const restantes = e.clases_incluidas - e.clases_usadas;
 
   modalInner(`
-    <h3>${escapeHtml(claseSeleccionada.nombre_tipo)}</h3>
-    <p style="margin-bottom:18px;">${formatearFechaLarga(claseSeleccionada.fecha)} — ${claseSeleccionada.hora_inicio} hrs</p>
+    ${resumenClaseHtml()}
+    <h3 style="margin-bottom:10px;">Confirma tu reserva</h3>
+    <div class="alumno-resumen">
+      <span>Reservando para</span>
+      <strong>${escapeHtml(e.nombre)} ${escapeHtml(e.apellido)}</strong>
+      <span>${escapeHtml(e.correo)}</span>
+    </div>
     <div class="summary-card">
       <div class="cls">${escapeHtml(e.nombre_plan)}</div>
       <div class="meta">Te quedan ${restantes} de ${e.clases_incluidas} clases · vence el ${e.fecha_fin}</div>
@@ -291,8 +306,11 @@ function renderPasoElegirPlan() {
   }
 
   modalInner(`
-    <h3>${escapeHtml(claseSeleccionada.nombre_tipo)}</h3>
-    <p style="margin-bottom:14px;">${formatearFechaLarga(claseSeleccionada.fecha)} — ${claseSeleccionada.hora_inicio} hrs</p>
+    ${resumenClaseHtml()}
+    <div class="alumno-resumen">
+      <span>Reservando para</span>
+      <strong>${escapeHtml(e.nombre)} ${escapeHtml(e.apellido)}</strong>
+    </div>
     <div class="msg error" style="background:rgba(200,240,0,0.08); color:var(--text); border-color:var(--border);">${aviso}</div>
     <div class="planes-select-grid">
       ${e.planes.map(p => {
@@ -328,7 +346,8 @@ function renderPasoPago() {
   const p = planSeleccionado;
 
   modalInner(`
-    <h3>Datos para transferir</h3>
+    ${resumenClaseHtml()}
+    <h3 style="margin-bottom:10px;">Datos para transferir</h3>
     <p style="margin-bottom:14px;">Plan <strong>${escapeHtml(p.nombre)}</strong> — $${Number(p.precio).toLocaleString('es-CL')}</p>
     <div class="bank-info-box" id="bank-info-box">
       <div class="bank-row"><span>Banco</span><strong>${escapeHtml(b.banco || '—')}</strong></div>
