@@ -103,8 +103,9 @@ function renderCalendario() {
     const fecha = new Date(mesActual.getFullYear(), mesActual.getMonth(), dia);
     const fechaISO = isoDate(fecha);
     const disponible = diasConClases.has(fechaISO) && fechaISO >= hoyISO;
+    const esHoy = fechaISO === hoyISO;
     celdas += `
-      <div class="calendar-day ${disponible ? 'disponible' : ''}"
+      <div class="calendar-day ${disponible ? 'disponible' : ''} ${esHoy ? 'hoy' : ''}"
            ${disponible ? `onclick="seleccionarDia('${fechaISO}')"` : ''}>
         ${dia}
       </div>

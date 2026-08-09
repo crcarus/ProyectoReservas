@@ -380,6 +380,11 @@ button.danger { background: var(--danger); color: #111; }
 
 .calendar-day.disponible:hover { filter: brightness(1.08); }
 
+.calendar-day.hoy {
+  box-shadow: 0 0 0 2px var(--text) inset;
+  font-weight: 800;
+}
+
 /* ---- Lista de horarios de un día ---- */
 
 .horas-list {
