@@ -5,10 +5,13 @@ let ADMIN_PIN = null;
 let tabActual = 'tipos';
 let cacheTipos = [];
 
-async function hacerLogin() {
+async function hacerLogin(btn) {
   const pin = document.getElementById('pin-input').value;
   const msg = document.getElementById('login-msg');
   msg.innerHTML = '';
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Ingresando...';
 
   try {
     await apiCall('adminLogin', { pin });
@@ -18,6 +21,9 @@ async function hacerLogin() {
     cambiarTab('tipos');
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 
@@ -70,7 +76,7 @@ async function renderTabTipos() {
           <label>Cupo máximo</label>
           <input type="number" id="t-cupo" placeholder="12">
         </div>
-        <button onclick="crearTipo()">Agregar tipo de clase</button>
+        <button onclick="crearTipo(this)">Agregar tipo de clase</button>
       </div>
       <div id="tipos-msg"></div>
       <div class="planes-grid">
@@ -80,7 +86,7 @@ async function renderTabTipos() {
             <div class="detalle">${t.duracion_minutos} min · hasta ${t.cupo_maximo} cupos</div>
             <span class="pill ${t.activo ? 'activo' : 'inactivo'}">${t.activo ? 'Activo' : 'Inactivo'}</span>
             <div class="acciones">
-              <button class="secondary" onclick="toggleTipo('${t.id_tipo}', ${!t.activo})">${t.activo ? 'Desactivar' : 'Activar'}</button>
+              <button class="secondary" onclick="toggleTipo(this, '${t.id_tipo}', ${!t.activo})">${t.activo ? 'Desactivar' : 'Activar'}</button>
             </div>
           </div>
         `).join('') || '<p style="color:var(--text-dim);">Todavía no hay tipos de clase configurados.</p>'}
@@ -91,7 +97,9 @@ async function renderTabTipos() {
   }
 }
 
-async function crearTipo() {
+async function crearTipo(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
   const nombre = document.getElementById('t-nombre').value;
   const duracion_minutos = Number(document.getElementById('t-duracion').value);
   const cupo_maximo = Number(document.getElementById('t-cupo').value);
@@ -103,12 +111,21 @@ async function crearTipo() {
     renderTabTipos();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Agregar tipo de clase';
   }
 }
 
-async function toggleTipo(id_tipo, nuevoActivo) {
-  await adminCall('adminEditarTipoDeClase', { id_tipo, activo: nuevoActivo });
-  renderTabTipos();
+async function toggleTipo(btn, id_tipo, nuevoActivo) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    await adminCall('adminEditarTipoDeClase', { id_tipo, activo: nuevoActivo });
+    renderTabTipos();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = nuevoActivo ? 'Activar' : 'Desactivar';
+  }
 }
 
 // ---------- Tab: Horarios ----------
@@ -162,7 +179,7 @@ async function renderTabHorarios() {
           <div id="horas-chips" class="chips-container"></div>
         </div>
 
-        <button onclick="crearHorariosMasivo()">Agregar horarios</button>
+        <button onclick="crearHorariosMasivo(this)">Agregar horarios</button>
       </div>
       <div id="horarios-msg"></div>
       <div id="horarios-lista"></div>
@@ -239,19 +256,22 @@ function renderPanelEdicionDia(id_tipo, dia, horariosDelDia) {
           </label>
         `).join('')}
       </div>
-      <button type="button" class="secondary" style="width:auto; margin-top:10px;" onclick="desactivarSeleccionadasDia()">Desactivar seleccionadas</button>
+      <button type="button" class="secondary" style="width:auto; margin-top:10px;" onclick="desactivarSeleccionadasDia(this)">Desactivar seleccionadas</button>
       <div style="display:flex; gap:10px; align-items:center; margin-top:14px;">
         <input type="time" id="dia-editor-hora">
-        <button type="button" style="width:auto;" onclick="agregarHoraADia('${id_tipo}', ${dia})">+ Agregar hora a este día</button>
+        <button type="button" style="width:auto;" onclick="agregarHoraADia(this, '${id_tipo}', ${dia})">+ Agregar hora a este día</button>
       </div>
       <div id="dia-editor-msg"></div>
     </div>
   `;
 }
 
-async function desactivarSeleccionadasDia() {
+async function desactivarSeleccionadasDia(btn) {
   const ids = Array.from(document.querySelectorAll('.dia-editor-check:checked')).map(cb => cb.value);
   if (!ids.length) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Desactivando...';
 
   for (const id_horario of ids) {
     await adminCall('adminEliminarHorario', { id_horario });
@@ -260,11 +280,14 @@ async function desactivarSeleccionadasDia() {
   renderTabHorarios();
 }
 
-async function agregarHoraADia(id_tipo, dia) {
+async function agregarHoraADia(btn, id_tipo, dia) {
   const input = document.getElementById('dia-editor-hora');
   const msg = document.getElementById('dia-editor-msg');
   const hora = input.value;
   if (!hora) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
 
   try {
     await adminCall('adminCrearHorariosMasivo', { id_tipo, dias: [dia], horas: [hora] });
@@ -272,6 +295,8 @@ async function agregarHoraADia(id_tipo, dia) {
     renderTabHorarios();
   } catch (err) {
     if (msg) msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = '+ Agregar hora a este día';
   }
 }
 
@@ -315,8 +340,8 @@ function renderEditorHorario() {
       </div>
       <div id="editor-msg"></div>
       <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-        <button style="width:auto;" onclick="guardarEdicionHorario()">Guardar</button>
-        <button class="secondary" style="width:auto;" onclick="toggleActivoHorario()">${h.activo ? 'Desactivar' : 'Activar'}</button>
+        <button style="width:auto;" onclick="guardarEdicionHorario(this)">Guardar</button>
+        <button class="secondary" style="width:auto;" onclick="toggleActivoHorario(this)">${h.activo ? 'Desactivar' : 'Activar'}</button>
         <button class="secondary" style="width:auto;" onclick="cerrarEditorHorario()">Cerrar</button>
       </div>
     </div>
@@ -328,11 +353,14 @@ function cerrarEditorHorario() {
   renderEditorHorario();
 }
 
-async function guardarEdicionHorario() {
+async function guardarEdicionHorario(btn) {
   const id_tipo = document.getElementById('edit-tipo').value;
   const dia_semana = Number(document.getElementById('edit-dia').value);
   const hora_inicio = document.getElementById('edit-hora').value;
   const msg = document.getElementById('editor-msg');
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
 
   try {
     await adminCall('adminEditarHorario', { id_horario: horarioSeleccionado, id_tipo, dia_semana, hora_inicio });
@@ -340,12 +368,16 @@ async function guardarEdicionHorario() {
     renderTabHorarios();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
   }
 }
 
-async function toggleActivoHorario() {
+async function toggleActivoHorario(btn) {
   const h = cacheHorarios.find(x => x.id_horario === horarioSeleccionado);
   if (!h) return;
+  btn.disabled = true;
+  btn.textContent = '...';
   await adminCall('adminEditarHorario', { id_horario: horarioSeleccionado, activo: !h.activo });
   horarioSeleccionado = null;
   renderTabHorarios();
@@ -378,7 +410,7 @@ function renderChipsHoras() {
     : '<span style="color:var(--text-dim); font-size:13px;">Ninguna hora agregada aún.</span>';
 }
 
-async function crearHorariosMasivo() {
+async function crearHorariosMasivo(btn) {
   const id_tipo = document.getElementById('h-tipo').value;
   const dias = Array.from(document.querySelectorAll('.dia-checkbox:checked')).map(cb => Number(cb.value));
   const msg = document.getElementById('horarios-msg');
@@ -392,6 +424,9 @@ async function crearHorariosMasivo() {
     return;
   }
 
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
+
   try {
     const resultado = await adminCall('adminCrearHorariosMasivo', { id_tipo, dias, horas: horasSeleccionadas });
     const detalle = resultado.omitidos
@@ -401,6 +436,8 @@ async function crearHorariosMasivo() {
     renderTabHorarios();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Agregar horarios';
   }
 }
 
@@ -575,7 +612,7 @@ async function renderTabPlanes() {
         <label class="dia-check" style="width:fit-content;">
           <input type="checkbox" id="p-gratis"> Es plan gratis (1 uso por alumno, ideal para clase de prueba)
         </label>
-        <button onclick="crearPlan()">Agregar plan</button>
+        <button onclick="crearPlan(this)">Agregar plan</button>
       </div>
       <div id="planes-msg"></div>
       <div class="planes-grid">
@@ -585,7 +622,7 @@ async function renderTabPlanes() {
             <div class="detalle">${p.clases_incluidas} clases · $${formatearPrecio(p.precio)} · ${p.duracion_dias} días</div>
             <span class="pill ${p.activo ? 'activo' : 'inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
             <div class="acciones">
-              <button class="secondary" onclick="togglePlan('${p.id_plan}', ${!p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+              <button class="secondary" onclick="togglePlan(this, '${p.id_plan}', ${!p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
             </div>
           </div>
         `).join('') || '<p style="color:var(--text-dim);">Todavía no hay planes configurados.</p>'}
@@ -596,7 +633,9 @@ async function renderTabPlanes() {
   }
 }
 
-async function crearPlan() {
+async function crearPlan(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
   const nombre = document.getElementById('p-nombre').value;
   const clases_incluidas = Number(document.getElementById('p-clases').value);
   const precio = Number(document.getElementById('p-precio').value);
@@ -610,10 +649,14 @@ async function crearPlan() {
     renderTabPlanes();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Agregar plan';
   }
 }
 
-async function togglePlan(id_plan, nuevoActivo) {
+async function togglePlan(btn, id_plan, nuevoActivo) {
+  btn.disabled = true;
+  btn.textContent = '...';
   await adminCall('adminEditarPlan', { id_plan, activo: nuevoActivo });
   renderTabPlanes();
 }
@@ -677,7 +720,7 @@ async function renderTabAlumnos() {
             </select>
           </div>
         </div>
-        <button onclick="asignarPlan()">Asignar plan</button>
+        <button onclick="asignarPlan(this)">Asignar plan</button>
       </div>
       <div id="alumnos-msg"></div>
 
@@ -741,7 +784,7 @@ function renderAlumnoCard(a) {
         </div>
         <div id="edit-alumno-msg"></div>
         <div style="display:flex; gap:8px; margin-top:10px;">
-          <button style="width:auto;" onclick="guardarEdicionAlumno('${a.id_alumno}')">Guardar</button>
+          <button style="width:auto;" onclick="guardarEdicionAlumno(this, '${a.id_alumno}')">Guardar</button>
           <button class="secondary" style="width:auto;" onclick="alumnoEnEdicion=null; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Cancelar</button>
         </div>
       </div>
@@ -785,7 +828,7 @@ function renderSuscripcionItem(s) {
         </div>
         <div id="edit-susc-msg"></div>
         <div style="display:flex; gap:8px; margin-top:10px;">
-          <button style="width:auto;" onclick="guardarEdicionSuscripcion('${s.id_suscripcion}')">Guardar</button>
+          <button style="width:auto;" onclick="guardarEdicionSuscripcion(this, '${s.id_suscripcion}')">Guardar</button>
           <button class="secondary" style="width:auto;" onclick="suscripcionEnEdicion=null; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Cancelar</button>
         </div>
       </div>
@@ -801,7 +844,7 @@ function renderSuscripcionItem(s) {
         <span class="pill ${s.estado_pago === 'pagado' ? 'activo' : 'inactivo'}">${s.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'}</span>
       </div>
       <div style="display:flex; gap:8px;">
-        <button class="secondary" style="width:auto;" onclick="marcarPago('${s.id_suscripcion}', '${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}')">
+        <button class="secondary" style="width:auto;" onclick="marcarPago(this, '${s.id_suscripcion}', '${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}')">
           Marcar ${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}
         </button>
         <button class="secondary" style="width:auto;" onclick="suscripcionEnEdicion='${s.id_suscripcion}'; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Editar</button>
@@ -810,8 +853,10 @@ function renderSuscripcionItem(s) {
   `;
 }
 
-async function guardarEdicionAlumno(id_alumno) {
+async function guardarEdicionAlumno(btn, id_alumno) {
   const msg = document.getElementById('edit-alumno-msg');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
   try {
     await adminCall('adminEditarAlumno', {
       id_alumno,
@@ -824,11 +869,15 @@ async function guardarEdicionAlumno(id_alumno) {
     renderTabAlumnos();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
   }
 }
 
-async function guardarEdicionSuscripcion(id_suscripcion) {
+async function guardarEdicionSuscripcion(btn, id_suscripcion) {
   const msg = document.getElementById('edit-susc-msg');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
   try {
     await adminCall('adminEditarSuscripcion', {
       id_suscripcion,
@@ -841,15 +890,19 @@ async function guardarEdicionSuscripcion(id_suscripcion) {
     renderTabAlumnos();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
   }
 }
 
-async function marcarPago(id_suscripcion, estado_pago) {
+async function marcarPago(btn, id_suscripcion, estado_pago) {
+  btn.disabled = true;
+  btn.textContent = '...';
   await adminCall('adminMarcarPago', { id_suscripcion, estado_pago });
   renderTabAlumnos();
 }
 
-async function asignarPlan() {
+async function asignarPlan(btn) {
   const correo = document.getElementById('al-correo').value;
   const nombre = document.getElementById('al-nombre').value;
   const apellido = document.getElementById('al-apellido').value;
@@ -858,12 +911,17 @@ async function asignarPlan() {
   const estado_pago = document.getElementById('al-estado-pago').value;
   const msg = document.getElementById('alumnos-msg');
 
+  btn.disabled = true;
+  btn.textContent = 'Asignando...';
+
   try {
     await adminCall('adminAsignarPlan', { correo, nombre, apellido, telefono, id_plan, estado_pago });
     msg.innerHTML = `<div class="msg ok">Plan asignado.</div>`;
     renderTabAlumnos();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Asignar plan';
   }
 }
 
@@ -893,7 +951,7 @@ async function renderTabConfig() {
           <div class="field" style="flex:1; min-width:140px;"><label>Nombre titular</label><input type="text" id="b-titular" value="${escapeHtml(datosBancarios.nombre_titular)}"></div>
           <div class="field" style="flex:1; min-width:180px;"><label>Correo confirmación</label><input type="email" id="b-correo" value="${escapeHtml(datosBancarios.correo_confirmacion)}"></div>
         </div>
-        <button onclick="guardarDatosBancarios()">Guardar datos bancarios</button>
+        <button onclick="guardarDatosBancarios(this)">Guardar datos bancarios</button>
       </div>
       <div id="bancarios-msg"></div>
     `;
@@ -902,8 +960,10 @@ async function renderTabConfig() {
   }
 }
 
-async function guardarDatosBancarios() {
+async function guardarDatosBancarios(btn) {
   const msg = document.getElementById('bancarios-msg');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
   try {
     await adminCall('adminGuardarDatosBancarios', {
       banco: document.getElementById('b-banco').value,
@@ -916,5 +976,8 @@ async function guardarDatosBancarios() {
     msg.innerHTML = `<div class="msg ok">Datos bancarios guardados.</div>`;
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar datos bancarios';
   }
 }

@@ -273,14 +273,17 @@ function renderPasoConCupo() {
     <div id="paso-cupo-msg"></div>
     <div style="display:flex; gap:10px; margin-top:14px;">
       <button type="button" class="secondary" onclick="renderPasoDatos()">Volver</button>
-      <button type="button" onclick="confirmarReservaConCupo()">Confirmar reserva</button>
+      <button type="button" onclick="confirmarReservaConCupo(this)">Confirmar reserva</button>
     </div>
   `);
 }
 
-async function confirmarReservaConCupo() {
+async function confirmarReservaConCupo(btn) {
   const msg = document.getElementById('paso-cupo-msg');
   const e = estadoAlumnoActual;
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Reservando...';
 
   try {
     await apiCall('crearReserva', {
@@ -290,6 +293,8 @@ async function confirmarReservaConCupo() {
     renderPasoOk();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 
@@ -334,7 +339,8 @@ function renderPasoElegirPlan() {
 function elegirPlan(plan) {
   planSeleccionado = plan;
   if (plan.es_gratis) {
-    confirmarReservaConPlan();
+    modalInner(`<div class="loading-state" style="justify-content:center; padding:40px 0;"><div class="spinner"></div> Reservando tu clase...</div>`);
+    confirmarReservaConPlan(null);
   } else {
     renderPasoPago();
   }
@@ -362,7 +368,7 @@ function renderPasoPago() {
     <div id="paso-pago-msg"></div>
     <div style="display:flex; gap:10px; margin-top:14px;">
       <button type="button" class="secondary" onclick="renderPasoElegirPlan()">Volver</button>
-      <button type="button" onclick="confirmarReservaConPlan()">Ya transferí, reservar clase</button>
+      <button type="button" onclick="confirmarReservaConPlan(this)">Ya transferí, reservar clase</button>
     </div>
   `);
 }
@@ -377,9 +383,15 @@ function copiarDatosBancarios() {
   });
 }
 
-async function confirmarReservaConPlan() {
+async function confirmarReservaConPlan(btn) {
   const msg = document.getElementById('paso-pago-msg');
   const e = estadoAlumnoActual;
+  let textoOriginal;
+  if (btn) {
+    textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Reservando...';
+  }
 
   try {
     await apiCall('crearReservaConPlan', {
@@ -389,8 +401,12 @@ async function confirmarReservaConPlan() {
     });
     renderPasoOk();
   } catch (err) {
-    if (msg) msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
-    else modalInner(`<div class="msg error">${escapeHtml(err.message)}</div><button type="button" onclick="cerrarModal()">Cerrar</button>`);
+    if (msg) {
+      msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+    } else {
+      modalInner(`<div class="msg error">${escapeHtml(err.message)}</div><button type="button" onclick="cerrarModal()">Cerrar</button>`);
+    }
   }
 }
 
@@ -419,13 +435,20 @@ function abrirModalCancelacion(idReserva) {
   document.getElementById('modal-cancelacion').style.display = 'flex';
 }
 
-async function confirmarCancelacion() {
+async function confirmarCancelacion(btn) {
   const msgBox = document.getElementById('cancel-msg');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Cancelando...';
+
   try {
     await apiCall('cancelarReserva', { id_reserva: idReservaACancelar });
     msgBox.innerHTML = `<div class="msg ok">Tu reserva fue cancelada. Te enviamos un correo de confirmación.</div>`;
+    btn.style.display = 'none';
   } catch (err) {
     msgBox.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 
