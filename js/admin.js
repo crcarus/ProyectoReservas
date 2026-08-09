@@ -42,6 +42,8 @@ function cambiarTab(tab) {
   if (tab === 'horarios') renderTabHorarios();
   if (tab === 'generar') renderTabGenerar();
   if (tab === 'reservas') renderTabReservas();
+  if (tab === 'planes') renderTabPlanes();
+  if (tab === 'alumnos') renderTabAlumnos();
 }
 
 // ---------- Tab: Tipos de clase ----------
@@ -433,7 +435,7 @@ async function verReservas(id_clase, etiqueta) {
         <tbody>
           ${reservas.map(r => `
             <tr>
-              <td>${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}</td>
+              <td>${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</td>
               <td>${escapeHtml(r.correo)}</td>
               <td>${escapeHtml(r.telefono)}</td>
               <td><span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span></td>
@@ -447,8 +449,182 @@ async function verReservas(id_clase, etiqueta) {
   }
 }
 
+function badgeAlertaPlan(alerta) {
+  if (alerta === 'sin_plan') return '<span class="badge-alerta">Sin plan</span>';
+  if (alerta === 'excede_plan') return '<span class="badge-alerta">Excede plan</span>';
+  return '';
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ---------- Tab: Planes ----------
+
+let cachePlanes = [];
+
+async function renderTabPlanes() {
+  const el = document.getElementById('tab-content');
+  el.innerHTML = '<p>Cargando...</p>';
+
+  try {
+    cachePlanes = await adminCall('adminGetPlanes');
+
+    el.innerHTML = `
+      <div class="inline-form">
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="p-nombre" placeholder="Ej: 8 clases">
+        </div>
+        <div class="field">
+          <label>Clases incluidas</label>
+          <input type="number" id="p-clases" placeholder="8">
+        </div>
+        <div class="field">
+          <label>Precio (CLP)</label>
+          <input type="number" id="p-precio" placeholder="60000">
+        </div>
+        <div class="field">
+          <label>Duración (días)</label>
+          <input type="number" id="p-duracion" placeholder="30" value="30">
+        </div>
+        <button onclick="crearPlan()">Agregar plan</button>
+      </div>
+      <div id="planes-msg"></div>
+      <div class="planes-grid">
+        ${cachePlanes.map(p => `
+          <div class="plan-card">
+            <div class="nombre">${escapeHtml(p.nombre)}</div>
+            <div class="detalle">${p.clases_incluidas} clases · $${formatearPrecio(p.precio)} · ${p.duracion_dias} días</div>
+            <span class="pill ${p.activo ? 'activo' : 'inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
+            <div class="acciones">
+              <button class="secondary" onclick="togglePlan('${p.id_plan}', ${!p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+            </div>
+          </div>
+        `).join('') || '<p style="color:var(--text-dim);">Todavía no hay planes configurados.</p>'}
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function crearPlan() {
+  const nombre = document.getElementById('p-nombre').value;
+  const clases_incluidas = Number(document.getElementById('p-clases').value);
+  const precio = Number(document.getElementById('p-precio').value);
+  const duracion_dias = Number(document.getElementById('p-duracion').value) || 30;
+  const msg = document.getElementById('planes-msg');
+
+  try {
+    await adminCall('adminCrearPlan', { nombre, clases_incluidas, precio, duracion_dias });
+    msg.innerHTML = `<div class="msg ok">Plan creado.</div>`;
+    renderTabPlanes();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function togglePlan(id_plan, nuevoActivo) {
+  await adminCall('adminEditarPlan', { id_plan, activo: nuevoActivo });
+  renderTabPlanes();
+}
+
+function formatearPrecio(precio) {
+  return Number(precio).toLocaleString('es-CL');
+}
+
+// ---------- Tab: Alumnos ----------
+
+async function renderTabAlumnos() {
+  const el = document.getElementById('tab-content');
+  el.innerHTML = '<p>Cargando...</p>';
+
+  try {
+    if (!cachePlanes.length) cachePlanes = await adminCall('adminGetPlanes');
+    const planesActivos = cachePlanes.filter(p => p.activo);
+    const alumnos = await adminCall('adminGetAlumnos');
+
+    el.innerHTML = `
+      <div class="inline-form" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:160px;">
+            <label>Correo</label>
+            <input type="email" id="al-correo" placeholder="alumno@correo.com">
+          </div>
+          <div class="field" style="flex:1; min-width:140px;">
+            <label>Nombre</label>
+            <input type="text" id="al-nombre">
+          </div>
+          <div class="field" style="flex:1; min-width:140px;">
+            <label>Apellido</label>
+            <input type="text" id="al-apellido">
+          </div>
+          <div class="field" style="flex:1; min-width:140px;">
+            <label>Teléfono</label>
+            <input type="tel" id="al-telefono">
+          </div>
+        </div>
+        <div class="field" style="max-width:280px;">
+          <label>Plan</label>
+          <select id="al-plan">
+            ${planesActivos.map(p => `<option value="${p.id_plan}">${escapeHtml(p.nombre)} — $${formatearPrecio(p.precio)}</option>`).join('')}
+          </select>
+        </div>
+        <button onclick="asignarPlan()">Asignar / renovar plan</button>
+      </div>
+      <div id="alumnos-msg"></div>
+      <div class="alumnos-grid">
+        ${alumnos.map(a => `
+          <div class="alumno-card">
+            <div class="nombre">${escapeHtml(a.nombre)} ${escapeHtml(a.apellido)}</div>
+            <div class="detalle">${escapeHtml(a.correo)}</div>
+            <div class="detalle">${escapeHtml(a.telefono || '—')}</div>
+            <div class="uso ${a.clases_usadas > a.clases_incluidas ? 'excede' : ''}">
+              ${escapeHtml(a.nombre_plan)} — <span class="num">${a.clases_usadas}/${a.clases_incluidas}</span> clases usadas
+            </div>
+            <div class="detalle">Vence: ${a.fecha_fin}</div>
+            <span class="pill ${a.vigente ? 'activo' : 'inactivo'}">${a.vigente ? 'Vigente' : 'Vencido'}</span>
+            <div class="acciones">
+              <button class="secondary" onclick="prellenarRenovacion('${a.id_alumno}')">Renovar</button>
+            </div>
+          </div>
+        `).join('') || '<p style="color:var(--text-dim);">Todavía no hay alumnos con plan asignado.</p>'}
+      </div>
+    `;
+
+    window.cacheAlumnos = alumnos;
+  } catch (err) {
+    el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function asignarPlan() {
+  const correo = document.getElementById('al-correo').value;
+  const nombre = document.getElementById('al-nombre').value;
+  const apellido = document.getElementById('al-apellido').value;
+  const telefono = document.getElementById('al-telefono').value;
+  const id_plan = document.getElementById('al-plan').value;
+  const msg = document.getElementById('alumnos-msg');
+
+  try {
+    const resultado = await adminCall('adminAsignarPlan', { correo, nombre, apellido, telefono, id_plan });
+    msg.innerHTML = `<div class="msg ok">${resultado.actualizado ? 'Plan renovado.' : 'Alumno y plan creados.'}</div>`;
+    renderTabAlumnos();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function prellenarRenovacion(id_alumno) {
+  const a = (window.cacheAlumnos || []).find(x => x.id_alumno === id_alumno);
+  if (!a) return;
+  document.getElementById('al-correo').value = a.correo;
+  document.getElementById('al-nombre').value = a.nombre;
+  document.getElementById('al-apellido').value = a.apellido;
+  document.getElementById('al-telefono').value = a.telefono;
+  document.getElementById('al-plan').value = a.id_plan;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }

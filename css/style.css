@@ -545,6 +545,61 @@ button.danger { background: var(--danger); color: #111; }
   margin-top: 8px;
 }
 
+.planes-grid, .alumnos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.plan-card, .alumno-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.plan-card .nombre, .alumno-card .nombre {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.plan-card .detalle, .alumno-card .detalle {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.alumno-card .uso {
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.alumno-card .uso .num { color: var(--accent); font-weight: 700; }
+.alumno-card .uso.excede .num { color: var(--danger); }
+
+.plan-card .acciones, .alumno-card .acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.plan-card .acciones button, .alumno-card .acciones button {
+  width: auto;
+}
+
+.badge-alerta {
+  display: inline-block;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+  background: rgba(224,72,60,0.15);
+  color: var(--danger);
+}
 .admin-login {
   max-width: 360px;
   margin: 80px auto;
@@ -556,11 +611,14 @@ button.danger { background: var(--danger); color: #111; }
   gap: 4px;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab-btn {
   background: none;
   width: auto;
+  flex-shrink: 0;
   color: var(--text-dim);
   border-radius: 0;
   border-bottom: 3px solid transparent;
