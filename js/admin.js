@@ -114,15 +114,17 @@ async function toggleTipo(id_tipo, nuevoActivo) {
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0]; // Lunes primero, Domingo al final
 
 let cacheHorarios = [];
-let horarioEnEdicion = null; // id_horario de la fila en modo edición, o null
+let horarioSeleccionado = null; // id_horario abierto en el panel de edición
 let horasSeleccionadas = []; // horas agregadas como chips en el formulario de creación masiva
 
 async function renderTabHorarios() {
   const el = document.getElementById('tab-content');
   el.innerHTML = '<p>Cargando...</p>';
   horasSeleccionadas = [];
+  horarioSeleccionado = null;
 
   try {
     if (!cacheTipos.length) cacheTipos = await adminCall('adminGetTiposDeClase');
@@ -160,18 +162,133 @@ async function renderTabHorarios() {
         <button onclick="crearHorariosMasivo()">Agregar horarios</button>
       </div>
       <div id="horarios-msg"></div>
-      <table>
-        <thead><tr><th>Tipo</th><th>Día</th><th>Hora</th><th>Estado</th><th colspan="2"></th></tr></thead>
-        <tbody id="horarios-tbody">
-          ${cacheHorarios.map(h => filaHorario(h)).join('')}
-        </tbody>
-      </table>
+      <div id="horarios-lista"></div>
+      <div id="horario-editor"></div>
     `;
 
     renderChipsHoras();
+    renderListaHorarios();
   } catch (err) {
     el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
+}
+
+function renderListaHorarios() {
+  const cont = document.getElementById('horarios-lista');
+  if (!cont) return;
+
+  if (!cacheHorarios.length) {
+    cont.innerHTML = `<p style="color:var(--text-dim);">Todavía no hay horarios configurados.</p>`;
+    return;
+  }
+
+  cont.innerHTML = cacheTipos.map(tipo => {
+    const horariosDelTipo = cacheHorarios.filter(h => h.id_tipo === tipo.id_tipo);
+    if (!horariosDelTipo.length) return '';
+
+    const filasPorDia = ORDEN_DIAS.map(dia => {
+      const horariosDelDia = horariosDelTipo
+        .filter(h => Number(h.dia_semana) === dia)
+        .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+      if (!horariosDelDia.length) return '';
+
+      return `
+        <div class="horario-dia-row">
+          <div class="horario-dia-label">${DIAS_CORTO[dia]}</div>
+          <div class="horas-chips-row">
+            ${horariosDelDia.map(h => `
+              <button type="button" class="hora-chip-btn ${h.activo ? '' : 'inactivo'}" onclick="seleccionarHorarioParaEditar('${h.id_horario}')">
+                ${h.hora_inicio}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="horario-group">
+        <div class="horario-group-title">${escapeHtml(tipo.nombre)}</div>
+        ${filasPorDia}
+      </div>
+    `;
+  }).join('');
+}
+
+function seleccionarHorarioParaEditar(id_horario) {
+  horarioSeleccionado = id_horario;
+  renderEditorHorario();
+}
+
+function renderEditorHorario() {
+  const cont = document.getElementById('horario-editor');
+  if (!cont) return;
+
+  if (!horarioSeleccionado) {
+    cont.innerHTML = '';
+    return;
+  }
+
+  const h = cacheHorarios.find(x => x.id_horario === horarioSeleccionado);
+  if (!h) { cont.innerHTML = ''; return; }
+
+  cont.innerHTML = `
+    <div class="horario-editor-card">
+      <h3 style="margin-bottom:16px;">Editar horario</h3>
+      <div class="inline-form" style="margin-bottom:0;">
+        <div class="field">
+          <label>Tipo de clase</label>
+          <select id="edit-tipo">
+            ${cacheTipos.map(t => `<option value="${t.id_tipo}" ${t.id_tipo === h.id_tipo ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Día</label>
+          <select id="edit-dia">
+            ${DIAS.map((d, i) => `<option value="${i}" ${i === Number(h.dia_semana) ? 'selected' : ''}>${d}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Hora</label>
+          <input type="time" id="edit-hora" value="${h.hora_inicio}">
+        </div>
+      </div>
+      <div id="editor-msg"></div>
+      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <button style="width:auto;" onclick="guardarEdicionHorario()">Guardar</button>
+        <button class="secondary" style="width:auto;" onclick="toggleActivoHorario()">${h.activo ? 'Desactivar' : 'Activar'}</button>
+        <button class="secondary" style="width:auto;" onclick="cerrarEditorHorario()">Cerrar</button>
+      </div>
+    </div>
+  `;
+}
+
+function cerrarEditorHorario() {
+  horarioSeleccionado = null;
+  renderEditorHorario();
+}
+
+async function guardarEdicionHorario() {
+  const id_tipo = document.getElementById('edit-tipo').value;
+  const dia_semana = Number(document.getElementById('edit-dia').value);
+  const hora_inicio = document.getElementById('edit-hora').value;
+  const msg = document.getElementById('editor-msg');
+
+  try {
+    await adminCall('adminEditarHorario', { id_horario: horarioSeleccionado, id_tipo, dia_semana, hora_inicio });
+    horarioSeleccionado = null;
+    renderTabHorarios();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function toggleActivoHorario() {
+  const h = cacheHorarios.find(x => x.id_horario === horarioSeleccionado);
+  if (!h) return;
+  await adminCall('adminEditarHorario', { id_horario: horarioSeleccionado, activo: !h.activo });
+  horarioSeleccionado = null;
+  renderTabHorarios();
 }
 
 function agregarHoraChip() {
@@ -224,73 +341,6 @@ async function crearHorariosMasivo() {
     renderTabHorarios();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
-  }
-}
-
-function filaHorario(h) {
-  const tipo = cacheTipos.find(t => t.id_tipo === h.id_tipo);
-
-  if (horarioEnEdicion === h.id_horario) {
-    return `
-      <tr>
-        <td>
-          <select id="edit-tipo-${h.id_horario}">
-            ${cacheTipos.map(t => `<option value="${t.id_tipo}" ${t.id_tipo === h.id_tipo ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <select id="edit-dia-${h.id_horario}">
-            ${DIAS.map((d, i) => `<option value="${i}" ${i === Number(h.dia_semana) ? 'selected' : ''}>${d}</option>`).join('')}
-          </select>
-        </td>
-        <td><input type="time" id="edit-hora-${h.id_horario}" value="${h.hora_inicio}"></td>
-        <td><span class="pill ${h.activo ? 'activo' : 'inactivo'}">${h.activo ? 'Activo' : 'Inactivo'}</span></td>
-        <td colspan="2" style="display:flex; gap:8px;">
-          <button style="width:auto;" onclick="guardarEdicionHorario('${h.id_horario}')">Guardar</button>
-          <button class="secondary" style="width:auto;" onclick="cancelarEdicionHorario()">Cancelar</button>
-        </td>
-      </tr>
-    `;
-  }
-
-  return `
-    <tr>
-      <td>${tipo ? escapeHtml(tipo.nombre) : h.id_tipo}</td>
-      <td>${DIAS[h.dia_semana]}</td>
-      <td>${h.hora_inicio}</td>
-      <td><span class="pill ${h.activo ? 'activo' : 'inactivo'}">${h.activo ? 'Activo' : 'Inactivo'}</span></td>
-      <td><button class="secondary" style="width:auto;" onclick="editarHorario('${h.id_horario}')">Editar</button></td>
-      <td><button class="secondary" style="width:auto;" onclick="eliminarHorario('${h.id_horario}')">Desactivar</button></td>
-    </tr>
-  `;
-}
-
-function refrescarTablaHorarios() {
-  document.getElementById('horarios-tbody').innerHTML =
-    cacheHorarios.map(h => filaHorario(h)).join('');
-}
-
-function editarHorario(id_horario) {
-  horarioEnEdicion = id_horario;
-  refrescarTablaHorarios();
-}
-
-function cancelarEdicionHorario() {
-  horarioEnEdicion = null;
-  refrescarTablaHorarios();
-}
-
-async function guardarEdicionHorario(id_horario) {
-  const id_tipo = document.getElementById(`edit-tipo-${id_horario}`).value;
-  const dia_semana = Number(document.getElementById(`edit-dia-${id_horario}`).value);
-  const hora_inicio = document.getElementById(`edit-hora-${id_horario}`).value;
-
-  try {
-    await adminCall('adminEditarHorario', { id_horario, id_tipo, dia_semana, hora_inicio });
-    horarioEnEdicion = null;
-    renderTabHorarios();
-  } catch (err) {
-    alert(err.message);
   }
 }
 

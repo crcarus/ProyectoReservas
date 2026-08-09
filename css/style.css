@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
+  color-scheme: dark;
   --bg: #0a0a0a;
   --bg-elevated: #131313;
   --bg-card: #1c1c1c;
@@ -473,7 +474,76 @@ button.danger { background: var(--danger); color: #111; }
 
 .chip button:hover { color: var(--danger); filter: none; }
 
-/* ---- Admin ---- */
+.horario-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.horario-group-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.horario-dia-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.horario-dia-row:first-of-type { border-top: none; }
+
+.horario-dia-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  width: 40px;
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+
+.horas-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.hora-chip-btn {
+  width: auto;
+  background: rgba(200, 240, 0, 0.08);
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hora-chip-btn:hover { background: rgba(200, 240, 0, 0.16); }
+
+.hora-chip-btn.inactivo {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.horario-editor-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: 8px;
+}
 
 .admin-login {
   max-width: 360px;
