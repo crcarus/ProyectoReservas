@@ -600,6 +600,22 @@ button.danger { background: var(--danger); color: #111; }
   color: var(--text-dim);
 }
 
+.hora-acordeon {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hora-btn.activo {
+  border-color: var(--accent);
+}
+
+.roster-acordeon {
+  padding-left: 12px;
+  margin-left: 6px;
+  border-left: 2px solid var(--accent-dim);
+}
+
 .planes-select-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

@@ -552,7 +552,6 @@ function renderCalendarioReservas() {
     </div>
     <div class="calendar-grid">${celdas}</div>
     <div id="reservas-horas" style="margin-top:20px;"></div>
-    <div id="detalle-reservas"></div>
   `;
 
   if (reservasDiaSeleccionado) renderHorasReservas();
@@ -560,9 +559,14 @@ function renderCalendarioReservas() {
 
 function seleccionarDiaReservas(fechaISO) {
   reservasDiaSeleccionado = fechaISO;
+  reservasClaseSeleccionada = null;
+  reservasDelClaseSeleccionada = null;
   renderHorasReservas();
-  document.getElementById('detalle-reservas').innerHTML = '';
 }
+
+let reservasClaseSeleccionada = null; // id_clase actualmente expandido en el acordeón
+let reservasClaseEtiqueta = null;
+let reservasDelClaseSeleccionada = null; // datos ya cargados de esa clase (null = cargando)
 
 function renderHorasReservas() {
   const cont = document.getElementById('reservas-horas');
@@ -579,44 +583,64 @@ function renderHorasReservas() {
     </div>
     <div class="horas-list">
       ${clasesDelDia.map(c => `
-        <button type="button" class="hora-btn" onclick="verReservas('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">
-          <span class="hora">${c.hora_inicio}</span>
-          <span class="cupos-txt">${escapeHtml(c.nombre_tipo)} · ${c.ocupados}/${c.cupo_maximo}</span>
-        </button>
+        <div class="hora-acordeon">
+          <button type="button" class="hora-btn ${reservasClaseSeleccionada === c.id_clase ? 'activo' : ''}"
+                  onclick="toggleReservasClase('${c.id_clase}', '${escapeHtml(c.nombre_tipo)} — ${c.fecha} ${c.hora_inicio}')">
+            <span class="hora">${c.hora_inicio}</span>
+            <span class="cupos-txt">${escapeHtml(c.nombre_tipo)} · ${c.ocupados}/${c.cupo_maximo}</span>
+          </button>
+          ${reservasClaseSeleccionada === c.id_clase ? `
+            <div class="roster-acordeon">
+              ${reservasDelClaseSeleccionada === null
+                ? '<div class="loading-state"><div class="spinner"></div> Cargando...</div>'
+                : renderRosterHtml(reservasDelClaseSeleccionada)}
+            </div>
+          ` : ''}
+        </div>
       `).join('') || '<p style="color:var(--text-dim);">No hay clases este día.</p>'}
     </div>
   `;
 }
 
-async function verReservas(id_clase, etiqueta) {
-  const detalle = document.getElementById('detalle-reservas');
-  detalle.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
+async function toggleReservasClase(id_clase, etiqueta) {
+  if (reservasClaseSeleccionada === id_clase) {
+    reservasClaseSeleccionada = null;
+    reservasDelClaseSeleccionada = null;
+    renderHorasReservas();
+    return;
+  }
+
+  reservasClaseSeleccionada = id_clase;
+  reservasClaseEtiqueta = etiqueta;
+  reservasDelClaseSeleccionada = null;
+  renderHorasReservas();
 
   try {
-    const reservas = await adminCall('adminGetReservasPorClase', { id_clase });
-    detalle.innerHTML = `
-      <h3 style="margin-top:20px;">${etiqueta}</h3>
-      ${reservas.map(r => `
-        <div class="alumno-card" style="margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
-            <div>
-              <div class="nombre">${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</div>
-              <div class="detalle">${escapeHtml(r.correo)} · ${escapeHtml(r.telefono)}</div>
-            </div>
-            <span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span>
-          </div>
-          ${r.saldo_plan ? `
-            <div class="uso ${r.saldo_plan.clases_usadas > r.saldo_plan.clases_incluidas ? 'excede' : ''}" style="margin-top:8px;">
-              ${escapeHtml(r.saldo_plan.nombre_plan)} — <span class="num">${r.saldo_plan.clases_incluidas - r.saldo_plan.clases_usadas} de ${r.saldo_plan.clases_incluidas}</span> clases disponibles
-              ${!r.saldo_plan.vigente ? '<span class="pill inactivo">Plan vencido</span>' : ''}
-            </div>
-          ` : '<div class="detalle" style="margin-top:8px; color:var(--danger);">Sin plan registrado</div>'}
-        </div>
-      `).join('') || '<p style="color:var(--text-dim);">Sin reservas aún.</p>'}
-    `;
+    reservasDelClaseSeleccionada = await adminCall('adminGetReservasPorClase', { id_clase });
   } catch (err) {
-    detalle.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    reservasDelClaseSeleccionada = [];
   }
+  renderHorasReservas();
+}
+
+function renderRosterHtml(reservas) {
+  return reservas.map(r => `
+    <div class="alumno-card" style="margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+        <div>
+          <div class="nombre">${escapeHtml(r.nombre)} ${escapeHtml(r.apellido)}${badgeAlertaPlan(r.alerta_plan)}</div>
+          <div class="detalle">${escapeHtml(r.correo)} · ${escapeHtml(r.telefono)}</div>
+        </div>
+        <span class="pill ${r.estado === 'confirmada' ? 'activo' : 'inactivo'}">${r.estado}</span>
+      </div>
+      ${r.saldo_plan ? `
+        <div class="uso ${r.saldo_plan.clases_usadas > r.saldo_plan.clases_incluidas ? 'excede' : ''}" style="margin-top:8px;">
+          ${escapeHtml(r.saldo_plan.nombre_plan)} — <span class="num">${r.saldo_plan.clases_incluidas - r.saldo_plan.clases_usadas} de ${r.saldo_plan.clases_incluidas}</span> clases disponibles
+          ${!r.saldo_plan.vigente ? '<span class="pill inactivo">Plan vencido</span>' : ''}
+        </div>
+      ` : '<div class="detalle" style="margin-top:8px; color:var(--danger);">Sin plan registrado</div>'}
+    </div>
+  `).join('') || '<p style="color:var(--text-dim);">Sin reservas aún.</p>';
 }
 
 function badgeAlertaPlan(alerta) {
