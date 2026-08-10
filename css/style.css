@@ -623,6 +623,12 @@ button.danger { background: var(--danger); color: #111; }
   margin-top: 14px;
 }
 
+@media (max-width: 420px) {
+  .planes-select-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .plan-select-card {
   width: auto;
   background: var(--bg-card);

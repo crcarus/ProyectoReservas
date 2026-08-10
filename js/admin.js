@@ -889,11 +889,59 @@ function renderAlumnoCard(a) {
           <div class="nombre">${escapeHtml(a.nombre)} ${escapeHtml(a.apellido)}</div>
           <div class="detalle">${escapeHtml(a.correo)} · ${escapeHtml(a.telefono || '—')}</div>
         </div>
-        <button class="secondary" style="width:auto;" onclick="alumnoEnEdicion='${a.id_alumno}'; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Editar alumno</button>
+        <div style="display:flex; gap:8px;">
+          <button class="secondary" style="width:auto;" onclick="toggleHistorialAlumno('${a.id_alumno}', '${escapeHtml(a.correo)}')">${historialAbierto === a.id_alumno ? 'Ocultar historial' : 'Ver historial'}</button>
+          <button class="secondary" style="width:auto;" onclick="alumnoEnEdicion='${a.id_alumno}'; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Editar alumno</button>
+        </div>
       </div>
       ${a.suscripciones.map(s => renderSuscripcionItem(s)).join('') || '<p style="color:var(--text-dim); font-size:13px; margin-top:8px;">Sin suscripciones registradas.</p>'}
+      ${historialAbierto === a.id_alumno ? `
+        <div class="roster-acordeon" style="margin-top:12px;">
+          ${historialDatos === null
+            ? '<div class="loading-state"><div class="spinner"></div> Cargando historial...</div>'
+            : renderHistorialHtml(historialDatos)}
+        </div>
+      ` : ''}
     </div>
   `;
+}
+
+let historialAbierto = null; // id_alumno con el historial abierto, o null
+let historialDatos = null;
+
+async function toggleHistorialAlumno(id_alumno, correo) {
+  if (historialAbierto === id_alumno) {
+    historialAbierto = null;
+    historialDatos = null;
+    renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
+    return;
+  }
+
+  historialAbierto = id_alumno;
+  historialDatos = null;
+  renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
+
+  try {
+    historialDatos = await adminCall('adminGetHistorialAlumno', { correo });
+  } catch (err) {
+    historialDatos = [];
+  }
+  renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
+}
+
+function renderHistorialHtml(historial) {
+  if (!historial.length) {
+    return '<p style="color:var(--text-dim); font-size:13px;">Este alumno todavía no tiene reservas.</p>';
+  }
+
+  return historial.map(h => `
+    <div class="susc-item">
+      <div class="info">
+        <strong>${escapeHtml(h.nombre_tipo)}</strong> — ${h.fecha} · ${h.hora_inicio}
+      </div>
+      <span class="pill ${h.estado === 'confirmada' ? 'activo' : 'inactivo'}">${h.estado === 'confirmada' ? 'Confirmada' : 'Cancelada'}</span>
+    </div>
+  `).join('');
 }
 
 function renderSuscripcionItem(s) {

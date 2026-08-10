@@ -327,7 +327,7 @@ function renderPasoElegirPlan() {
           <button type="button" class="plan-select-card ${p.es_gratis ? 'gratis' : ''}" onclick='elegirPlan(${JSON.stringify(p)})'>
             <div class="nombre">${escapeHtml(p.nombre)}</div>
             <div class="detalle">${p.clases_incluidas} clases · ${precioTxt}</div>
-            <div class="detalle">Vigencia: ${isoDate(hoy)} al ${isoDate(vence)}</div>
+            <div class="detalle">Vigencia: ${formatearFechaCorta(hoy)} – ${formatearFechaCorta(vence)}</div>
           </button>
         `;
       }).join('')}
@@ -475,6 +475,11 @@ function formatearMesLargo(date) {
 function formatearFechaLarga(fechaISO) {
   const d = new Date(fechaISO + 'T00:00:00');
   return d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatearFechaCorta(date) {
+  const d = new Date(date);
+  return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
 }
 
 function escapeHtml(str) {
