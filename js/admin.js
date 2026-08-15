@@ -922,7 +922,20 @@ async function toggleHistorialAlumno(id_alumno, correo) {
   renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
 
   try {
-    historialDatos = await adminCall('adminGetHistorialAlumno', { correo });
+    const [historial, detalle] = await Promise.all([
+      adminCall('adminGetHistorialAlumno', { correo }),
+      adminCall('adminGetDetalleAlumno', { id_alumno })
+    ]);
+    historialDatos = historial;
+
+    // Fusiona el saldo real (antes venía como null) en las suscripciones de este alumno en caché
+    const alumno = cacheAlumnos.find(a => a.id_alumno === id_alumno);
+    if (alumno) {
+      detalle.forEach(d => {
+        const s = alumno.suscripciones.find(x => x.id_suscripcion === d.id_suscripcion);
+        if (s) s.clases_usadas = d.clases_usadas;
+      });
+    }
   } catch (err) {
     historialDatos = [];
   }
@@ -985,7 +998,7 @@ function renderSuscripcionItem(s) {
   return `
     <div class="susc-item">
       <div class="info">
-        <strong>${escapeHtml(s.nombre_plan)}</strong> — ${s.clases_usadas}/${s.clases_incluidas} clases ·
+        <strong>${escapeHtml(s.nombre_plan)}</strong> — ${s.clases_usadas === null ? '…' : s.clases_usadas}/${s.clases_incluidas} clases ·
         ${s.fecha_inicio} al ${s.fecha_fin}
         <span class="pill ${s.vigente ? 'activo' : 'inactivo'}">${s.vigente ? 'Vigente' : 'Vencido'}</span>
         <span class="pill ${s.estado_pago === 'pagado' ? 'activo' : 'inactivo'}">${s.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'}</span>
