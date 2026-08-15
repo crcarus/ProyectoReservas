@@ -290,7 +290,7 @@ document.addEventListener('submit', async (e) => {
   const telefono = document.getElementById('f-telefono').value.trim();
 
   try {
-    const estado = await apiCall('getEstadoAlumno', { nombre, apellido, correo });
+    const estado = await apiCall('getEstadoAlumno', { nombre, apellido, correo, fecha: claseSeleccionada.fecha });
     estadoAlumnoActual = Object.assign({}, estado, { nombre, apellido, correo, telefono });
 
     if (estado.tiene_cupo) {
@@ -361,7 +361,7 @@ function renderPasoElegirPlan() {
   if (!e.encontrado) {
     aviso = 'Para reservar necesitas un plan activo. Elige una opción:';
   } else if (e.vencido) {
-    aviso = `Tu plan (${escapeHtml(e.nombre_plan)}) venció el ${formatearFechaCortaISO(e.fecha_fin)}. Elige un nuevo plan para continuar:`;
+    aviso = `Tu plan (${escapeHtml(e.nombre_plan)}) vence el ${formatearFechaCortaISO(e.fecha_fin)} y no alcanza a cubrir esta clase del ${formatearFechaCortaISO(claseSeleccionada.fecha)}. Elige un plan para continuar:`;
   } else {
     aviso = `Ya usaste tus ${e.clases_incluidas} clases de este período (vence el ${formatearFechaCortaISO(e.fecha_fin)}). Elige un plan para seguir reservando:`;
   }
