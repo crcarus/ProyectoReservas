@@ -452,10 +452,21 @@ async function eliminarHorario(id_horario) {
 
 // ---------- Tab: Generar clases ----------
 
+let genMesActual = null;
+let genClasesDelMes = [];
+let genDiaSeleccionado = null;
+let genClaseEnEdicion = null;
+let genAgregarPuntualAbierto = false;
+
 function renderTabGenerar() {
   const el = document.getElementById('tab-content');
   const hoy = new Date().toISOString().slice(0, 10);
   const enUnMes = new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);
+
+  genMesActual = primerDiaDelMesG(new Date());
+  genDiaSeleccionado = null;
+  genClaseEnEdicion = null;
+  genAgregarPuntualAbierto = false;
 
   el.innerHTML = `
     <p>Genera las clases programadas para un rango de fechas, a partir de los horarios recurrentes activos. Es seguro ejecutarlo varias veces: no duplica clases ya creadas.</p>
@@ -468,24 +479,258 @@ function renderTabGenerar() {
         <label>Hasta</label>
         <input type="date" id="g-hasta" value="${enUnMes}">
       </div>
-      <button onclick="generarClases()">Generar clases</button>
+      <button onclick="generarClases(this)">Generar clases</button>
     </div>
     <div id="generar-msg"></div>
+
+    <h3 style="margin:28px 0 10px;">Gestionar días puntuales</h3>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:14px;">
+      Aquí puedes editar la hora o el cupo de una clase de un día específico, cancelarla solo para ese día,
+      o agregar una clase suelta que no siga ningún horario recurrente — sin tocar la configuración general.
+    </p>
+    <div id="gen-calendario"><div class="loading-state"><div class="spinner"></div> Cargando...</div></div>
+    <div id="gen-dia"></div>
   `;
+
+  cargarMesGenerarYRenderizar();
 }
 
-async function generarClases() {
+async function generarClases(btn) {
   const desde = document.getElementById('g-desde').value;
   const hasta = document.getElementById('g-hasta').value;
   const msg = document.getElementById('generar-msg');
-  msg.innerHTML = '<p>Generando...</p>';
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
 
   try {
     const resultado = await adminCall('adminGenerarClasesProgramadas', { desde, hasta });
     msg.innerHTML = `<div class="msg ok">Se crearon ${resultado.clases_creadas} clases nuevas.</div>`;
+    cargarMesGenerarYRenderizar();
   } catch (err) {
     msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generar clases';
   }
+}
+
+async function cargarMesGenerarYRenderizar() {
+  const cont = document.getElementById('gen-calendario');
+  if (!cont) return;
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando...</div>';
+
+  try {
+    const desde = isoDateG(genMesActual);
+    const hasta = isoDateG(ultimoDiaDelMesG(genMesActual));
+    genClasesDelMes = await adminCall('adminGetResumenClases', { desde, hasta });
+    renderCalendarioGenerar();
+  } catch (err) {
+    cont.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function cambiarMesGenerar(delta) {
+  genMesActual = new Date(genMesActual.getFullYear(), genMesActual.getMonth() + delta, 1);
+  genDiaSeleccionado = null;
+  document.getElementById('gen-dia').innerHTML = '';
+  cargarMesGenerarYRenderizar();
+}
+
+function renderCalendarioGenerar() {
+  const cont = document.getElementById('gen-calendario');
+  const diasConClases = new Set(genClasesDelMes.map(c => c.fecha));
+  const primerDia = genMesActual.getDay();
+  const totalDias = ultimoDiaDelMesG(genMesActual).getDate();
+
+  let celdas = '';
+  for (let i = 0; i < primerDia; i++) {
+    celdas += `<div class="calendar-day vacio"></div>`;
+  }
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const fecha = new Date(genMesActual.getFullYear(), genMesActual.getMonth(), dia);
+    const fechaISO = isoDateG(fecha);
+    const disponible = diasConClases.has(fechaISO);
+    const esHoy = fechaISO === isoDateG(new Date());
+    celdas += `
+      <div class="calendar-day ${disponible ? 'disponible' : ''} ${esHoy ? 'hoy' : ''}"
+           ${disponible ? `onclick="seleccionarDiaGenerar('${fechaISO}')"` : ''}>
+        ${dia}
+      </div>
+    `;
+  }
+
+  cont.innerHTML = `
+    <div class="calendar-header">
+      <button onclick="cambiarMesGenerar(-1)">&larr;</button>
+      <div class="calendar-month-label">${formatearMesLargoG(genMesActual)}</div>
+      <button onclick="cambiarMesGenerar(1)">&rarr;</button>
+    </div>
+    <div class="calendar-dow-row">
+      ${DIAS_CORTO.map(d => `<div class="calendar-dow">${d}</div>`).join('')}
+    </div>
+    <div class="calendar-grid">${celdas}</div>
+  `;
+}
+
+function seleccionarDiaGenerar(fechaISO) {
+  genDiaSeleccionado = fechaISO;
+  genClaseEnEdicion = null;
+  genAgregarPuntualAbierto = false;
+  renderDiaGenerar();
+}
+
+async function renderDiaGenerar() {
+  const cont = document.getElementById('gen-dia');
+  if (!cont || !genDiaSeleccionado) return;
+
+  if (!cacheTipos.length) cacheTipos = await adminCall('adminGetTiposDeClase');
+
+  const clasesDelDia = genClasesDelMes
+    .filter(c => c.fecha === genDiaSeleccionado)
+    .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+  cont.innerHTML = `
+    <div class="screen-header" style="margin-top:20px; margin-bottom:14px;">
+      <div class="nombre-tipo">${formatearFechaLargaG(genDiaSeleccionado)}</div>
+    </div>
+    ${clasesDelDia.map(c => renderClaseGenerarItem(c)).join('') || '<p style="color:var(--text-dim); font-size:13px;">No hay clases este día.</p>'}
+    <div style="margin-top:14px;">
+      <button class="secondary" onclick="toggleAgregarPuntual()">${genAgregarPuntualAbierto ? 'Cancelar' : '+ Agregar clase puntual este día'}</button>
+    </div>
+    ${genAgregarPuntualAbierto ? renderFormAgregarPuntual() : ''}
+  `;
+}
+
+function renderClaseGenerarItem(c) {
+  if (genClaseEnEdicion === c.id_clase) {
+    return `
+      <div class="susc-item" style="flex-direction:column; align-items:stretch; border-color:var(--accent-dim);">
+        <div class="inline-form" style="margin-bottom:0;">
+          <div class="field"><label>Hora</label><input type="time" id="edit-clase-hora" value="${c.hora_inicio}"></div>
+          <div class="field"><label>Cupo máximo</label><input type="number" id="edit-clase-cupo" value="${c.cupo_maximo}"></div>
+        </div>
+        <div id="edit-clase-msg"></div>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button style="width:auto;" onclick="guardarEdicionClaseGenerar(this, '${c.id_clase}')">Guardar</button>
+          <button class="secondary" style="width:auto;" onclick="genClaseEnEdicion=null; renderDiaGenerar();">Cancelar</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="susc-item">
+      <div class="info">
+        <strong>${escapeHtml(c.nombre_tipo)}</strong> — ${c.hora_inicio} · ${c.ocupados}/${c.cupo_maximo} cupos
+        <span class="pill ${c.estado === 'activa' ? 'activo' : 'inactivo'}">${c.estado === 'activa' ? 'Activa' : 'Cancelada'}</span>
+      </div>
+      ${c.estado === 'activa' ? `
+        <div style="display:flex; gap:8px;">
+          <button class="secondary" style="width:auto;" onclick="genClaseEnEdicion='${c.id_clase}'; renderDiaGenerar();">Editar</button>
+          <button class="secondary" style="width:auto;" onclick="cancelarClaseGenerar(this, '${c.id_clase}')">Cancelar clase</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function guardarEdicionClaseGenerar(btn, id_clase) {
+  const msg = document.getElementById('edit-clase-msg');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    await adminCall('adminEditarClaseProgramada', {
+      id_clase,
+      hora_inicio: document.getElementById('edit-clase-hora').value,
+      cupo_maximo: document.getElementById('edit-clase-cupo').value
+    });
+    genClaseEnEdicion = null;
+    await cargarMesGenerarYRenderizar();
+    renderDiaGenerar();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  }
+}
+
+async function cancelarClaseGenerar(btn, id_clase) {
+  btn.disabled = true;
+  btn.textContent = 'Cancelando...';
+  try {
+    await adminCall('adminCancelarClaseProgramada', { id_clase });
+    await cargarMesGenerarYRenderizar();
+    renderDiaGenerar();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Cancelar clase';
+  }
+}
+
+function toggleAgregarPuntual() {
+  genAgregarPuntualAbierto = !genAgregarPuntualAbierto;
+  renderDiaGenerar();
+}
+
+function renderFormAgregarPuntual() {
+  return `
+    <div class="dia-editor-panel">
+      <div class="dia-editor-title">Nueva clase puntual</div>
+      <div class="inline-form" style="margin-bottom:0;">
+        <div class="field">
+          <label>Tipo de clase</label>
+          <select id="nueva-clase-tipo">
+            ${cacheTipos.map(t => `<option value="${t.id_tipo}">${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Hora</label><input type="time" id="nueva-clase-hora"></div>
+        <div class="field"><label>Cupo (opcional)</label><input type="number" id="nueva-clase-cupo" placeholder="usa el del tipo"></div>
+      </div>
+      <div id="nueva-clase-msg"></div>
+      <button style="margin-top:10px;" onclick="agregarClasePuntual(this)">Agregar clase</button>
+    </div>
+  `;
+}
+
+async function agregarClasePuntual(btn) {
+  const msg = document.getElementById('nueva-clase-msg');
+  const id_tipo = document.getElementById('nueva-clase-tipo').value;
+  const hora_inicio = document.getElementById('nueva-clase-hora').value;
+  const cupo_maximo = document.getElementById('nueva-clase-cupo').value;
+
+  if (!hora_inicio) {
+    msg.innerHTML = `<div class="msg error">Falta la hora.</div>`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
+
+  try {
+    await adminCall('adminAgregarClasePuntual', { id_tipo, fecha: genDiaSeleccionado, hora_inicio, cupo_maximo });
+    genAgregarPuntualAbierto = false;
+    await cargarMesGenerarYRenderizar();
+    renderDiaGenerar();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Agregar clase';
+  }
+}
+
+// Helpers de fecha propios de esta pestaña
+function primerDiaDelMesG(date) { return new Date(date.getFullYear(), date.getMonth(), 1); }
+function ultimoDiaDelMesG(date) { return new Date(date.getFullYear(), date.getMonth() + 1, 0); }
+function isoDateG(date) {
+  const d = new Date(date);
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+function formatearMesLargoG(date) { return date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }); }
+function formatearFechaLargaG(fechaISO) {
+  const d = new Date(fechaISO + 'T00:00:00');
+  return d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 // ---------- Tab: Reservas ----------
