@@ -1009,6 +1009,7 @@ function formatearPrecio(precio) {
 
 let cacheAlumnos = [];
 let filtroEstadoPago = 'todos';
+let alumnoExpandido = null;
 let alumnoEnEdicion = null;
 let suscripcionEnEdicion = null;
 
@@ -1018,6 +1019,7 @@ async function renderTabAlumnos() {
   filtroEstadoPago = 'todos';
   alumnoEnEdicion = null;
   suscripcionEnEdicion = null;
+  alumnoExpandido = null;
 
   try {
     const [planes, alumnos] = await Promise.all([
@@ -1135,28 +1137,44 @@ function renderAlumnoCard(a) {
     `;
   }
 
+  const expandido = alumnoExpandido === a.id_alumno;
+
   return `
-    <div class="alumno-card" style="margin-bottom:14px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+    <div class="alumno-card" style="margin-bottom:10px;">
+      <div class="alumno-card-header" onclick="toggleAlumnoExpandido('${a.id_alumno}')">
         <div>
           <div class="nombre">${escapeHtml(a.nombre)} ${escapeHtml(a.apellido)}</div>
           <div class="detalle">${escapeHtml(a.correo)} · ${escapeHtml(a.telefono || '—')}</div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="secondary" style="width:auto;" onclick="toggleHistorialAlumno('${a.id_alumno}', '${escapeHtml(a.correo)}')">${historialAbierto === a.id_alumno ? 'Ocultar historial' : 'Ver historial'}</button>
-          <button class="secondary" style="width:auto;" onclick="alumnoEnEdicion='${a.id_alumno}'; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Editar alumno</button>
-        </div>
+        <span class="alumno-chevron">${expandido ? '▾' : '▸'}</span>
       </div>
-      ${a.suscripciones.map(s => renderSuscripcionItem(s)).join('') || '<p style="color:var(--text-dim); font-size:13px; margin-top:8px;">Sin suscripciones registradas.</p>'}
-      ${historialAbierto === a.id_alumno ? `
-        <div class="roster-acordeon" style="margin-top:12px;">
-          ${historialDatos === null
-            ? '<div class="loading-state"><div class="spinner"></div> Cargando historial...</div>'
-            : renderHistorialHtml(historialDatos)}
+      ${expandido ? `
+        <div style="margin-top:12px;">
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <button class="secondary" style="width:auto;" onclick="event.stopPropagation(); toggleHistorialAlumno('${a.id_alumno}', '${escapeHtml(a.correo)}')">${historialAbierto === a.id_alumno ? 'Ocultar historial' : 'Ver historial'}</button>
+            <button class="secondary" style="width:auto;" onclick="event.stopPropagation(); alumnoEnEdicion='${a.id_alumno}'; renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());">Editar alumno</button>
+          </div>
+          ${a.suscripciones.map(s => renderSuscripcionItem(s)).join('') || '<p style="color:var(--text-dim); font-size:13px;">Sin suscripciones registradas.</p>'}
+          ${historialAbierto === a.id_alumno ? `
+            <div class="roster-acordeon" style="margin-top:12px;">
+              ${historialDatos === null
+                ? '<div class="loading-state"><div class="spinner"></div> Cargando historial...</div>'
+                : renderHistorialHtml(historialDatos)}
+            </div>
+          ` : ''}
         </div>
       ` : ''}
     </div>
   `;
+}
+
+function toggleAlumnoExpandido(id_alumno) {
+  alumnoExpandido = alumnoExpandido === id_alumno ? null : id_alumno;
+  if (alumnoExpandido === null) {
+    historialAbierto = null;
+    historialDatos = null;
+  }
+  renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
 }
 
 let historialAbierto = null; // id_alumno con el historial abierto, o null
