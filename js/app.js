@@ -62,8 +62,37 @@ function seleccionarTipo(tipo) {
   cargarMesYRenderizar();
 }
 
-async function cargarMesYRenderizar() {
+// Caché de meses ya consultados, para que cambiar de mes sea instantáneo si ya
+// se precargó. Expira solo a los 30s (igual que el caché del backend) para no
+// arriesgar mostrar cupos desactualizados por mucho tiempo.
+let cacheMesesClases = {};
+const CACHE_MES_TTL_MS = 30000;
+
+function claveCacheMes(tipoId, mes) {
+  return tipoId + '_' + mes.getFullYear() + '-' + String(mes.getMonth() + 1).padStart(2, '0');
+}
+
+function obtenerCacheMes(clave) {
+  const entrada = cacheMesesClases[clave];
+  if (!entrada) return null;
+  if (Date.now() - entrada.ts > CACHE_MES_TTL_MS) return null;
+  return entrada.clases;
+}
+
+async function cargarMesYRenderizar(forzar) {
   const contenido = document.getElementById('contenido');
+  const clave = claveCacheMes(tipoActual.id_tipo, mesActual);
+
+  if (!forzar) {
+    const cacheado = obtenerCacheMes(clave);
+    if (cacheado) {
+      clasesDelMes = cacheado;
+      renderCalendario();
+      precargarMesesAdyacentes();
+      return;
+    }
+  }
+
   contenido.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando calendario...</div>';
 
   try {
@@ -76,10 +105,35 @@ async function cargarMesYRenderizar() {
     });
 
     clasesDelMes = clases.filter(c => c.id_tipo === tipoActual.id_tipo);
+    cacheMesesClases[clave] = { clases: clasesDelMes, ts: Date.now() };
     renderCalendario();
+    precargarMesesAdyacentes();
   } catch (err) {
     contenido.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
+}
+
+// Trae en segundo plano (sin bloquear la pantalla) el mes anterior y el
+// siguiente, para que al navegar ya estén listos. Si falla, no pasa nada —
+// simplemente se pedirá normal cuando el alumno llegue a ese mes.
+function precargarMesesAdyacentes() {
+  [-1, 1].forEach(delta => {
+    const mes = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+    const clave = claveCacheMes(tipoActual.id_tipo, mes);
+    if (obtenerCacheMes(clave)) return;
+
+    const desde = mes;
+    const hasta = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
+
+    apiCall('getClasesDisponibles', { desde: isoDate(desde), hasta: isoDate(hasta) })
+      .then(clases => {
+        cacheMesesClases[clave] = {
+          clases: clases.filter(c => c.id_tipo === tipoActual.id_tipo),
+          ts: Date.now()
+        };
+      })
+      .catch(() => {});
+  });
 }
 
 function cambiarMes(delta) {
@@ -422,7 +476,8 @@ function renderPasoOk() {
 
 async function cerrarModalYRefrescar() {
   cerrarModal();
-  await cargarMesYRenderizar();
+  delete cacheMesesClases[claveCacheMes(tipoActual.id_tipo, mesActual)];
+  await cargarMesYRenderizar(true);
   renderHoras();
 }
 

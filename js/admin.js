@@ -147,8 +147,12 @@ async function renderTabHorarios() {
   diaEnEdicion = null;
 
   try {
-    if (!cacheTipos.length) cacheTipos = await adminCall('adminGetTiposDeClase');
-    cacheHorarios = await adminCall('adminGetHorarios');
+    const [tipos, horarios] = await Promise.all([
+      adminCall('adminGetTiposDeClase'),
+      adminCall('adminGetHorarios')
+    ]);
+    cacheTipos = tipos;
+    cacheHorarios = horarios;
 
     el.innerHTML = `
       <div class="inline-form" style="flex-direction:column; align-items:stretch;">
@@ -771,9 +775,13 @@ async function renderTabAlumnos() {
   suscripcionEnEdicion = null;
 
   try {
-    if (!cachePlanes.length) cachePlanes = await adminCall('adminGetPlanes');
+    const [planes, alumnos] = await Promise.all([
+      adminCall('adminGetPlanes'),
+      adminCall('adminGetAlumnos')
+    ]);
+    cachePlanes = planes;
+    cacheAlumnos = alumnos;
     const planesActivos = cachePlanes.filter(p => p.activo);
-    cacheAlumnos = await adminCall('adminGetAlumnos');
 
     el.innerHTML = `
       <h3 style="margin-bottom:10px;">Asignar plan manualmente</h3>
