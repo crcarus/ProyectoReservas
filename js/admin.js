@@ -1248,13 +1248,24 @@ function renderSuscripcionItem(s) {
     `;
   }
 
+  const disponibles = s.clases_usadas === null ? null : Math.max(0, s.clases_incluidas - s.clases_usadas);
+
   return `
     <div class="susc-item">
       <div class="info">
-        <strong>${escapeHtml(s.nombre_plan)}</strong> — ${s.clases_usadas === null ? '…' : s.clases_usadas}/${s.clases_incluidas} clases ·
-        ${s.fecha_inicio} al ${s.fecha_fin}
-        <span class="pill ${s.vigente ? 'activo' : 'inactivo'}">${s.vigente ? 'Vigente' : 'Vencido'}</span>
-        <span class="pill ${s.estado_pago === 'pagado' ? 'activo' : 'inactivo'}">${s.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'}</span>
+        <strong>${escapeHtml(s.nombre_plan)}</strong>
+        <div class="susc-uso">
+          <span class="usadas">${s.clases_usadas === null ? '…' : s.clases_usadas} tomadas</span>
+          <span class="sep">·</span>
+          <span class="disponibles ${disponibles === 0 ? 'agotado' : ''}">${disponibles === null ? '…' : disponibles} disponibles</span>
+          <span class="sep">·</span>
+          <span class="total">${s.clases_incluidas} en total</span>
+        </div>
+        <div class="susc-fechas">${formatearFechaCortaAdmin(s.fecha_inicio)} – ${formatearFechaCortaAdmin(s.fecha_fin)}</div>
+        <div style="margin-top:4px;">
+          <span class="pill ${s.vigente ? 'activo' : 'inactivo'}">${s.vigente ? 'Vigente' : 'Vencido'}</span>
+          <span class="pill ${s.estado_pago === 'pagado' ? 'activo' : 'inactivo'}">${s.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'}</span>
+        </div>
       </div>
       <div style="display:flex; gap:8px;">
         <button class="secondary" style="width:auto;" onclick="marcarPago(this, '${s.id_suscripcion}', '${s.estado_pago === 'pagado' ? 'pendiente' : 'pagado'}')">
@@ -1264,6 +1275,11 @@ function renderSuscripcionItem(s) {
       </div>
     </div>
   `;
+}
+
+function formatearFechaCortaAdmin(fechaISO) {
+  const d = new Date(fechaISO + 'T00:00:00');
+  return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
 }
 
 async function guardarEdicionAlumno(btn, id_alumno) {

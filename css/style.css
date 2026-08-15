@@ -677,7 +677,7 @@ button.danger { background: var(--danger); color: #111; }
 .susc-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -688,7 +688,38 @@ button.danger { background: var(--danger); color: #111; }
 }
 
 .susc-item .info { font-size: 12px; color: var(--text-dim); }
-.susc-item .info strong { color: var(--text); }
+.susc-item .info strong { color: var(--text); font-size: 14px; }
+
+.susc-uso {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 5px 0 3px;
+  font-size: 12px;
+}
+
+.susc-uso .sep { color: var(--border); }
+
+.susc-uso .usadas {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.susc-uso .disponibles {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.susc-uso .disponibles.agotado { color: var(--danger); }
+
+.susc-uso .total { color: var(--text-dim); }
+
+.susc-fechas {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
 .dia-editor-panel {
   background: var(--bg-elevated);
   border: 1px solid var(--accent-dim);
