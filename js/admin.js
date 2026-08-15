@@ -1175,20 +1175,7 @@ async function toggleHistorialAlumno(id_alumno, correo) {
   renderListaAlumnos(document.getElementById('al-buscador').value.trim().toLowerCase());
 
   try {
-    const [historial, detalle] = await Promise.all([
-      adminCall('adminGetHistorialAlumno', { correo }),
-      adminCall('adminGetDetalleAlumno', { id_alumno })
-    ]);
-    historialDatos = historial;
-
-    // Fusiona el saldo real (antes venía como null) en las suscripciones de este alumno en caché
-    const alumno = cacheAlumnos.find(a => a.id_alumno === id_alumno);
-    if (alumno) {
-      detalle.forEach(d => {
-        const s = alumno.suscripciones.find(x => x.id_suscripcion === d.id_suscripcion);
-        if (s) s.clases_usadas = d.clases_usadas;
-      });
-    }
+    historialDatos = await adminCall('adminGetHistorialAlumno', { correo });
   } catch (err) {
     historialDatos = [];
   }
@@ -1248,16 +1235,16 @@ function renderSuscripcionItem(s) {
     `;
   }
 
-  const disponibles = s.clases_usadas === null ? null : Math.max(0, s.clases_incluidas - s.clases_usadas);
+  const disponibles = Math.max(0, s.clases_incluidas - s.clases_usadas);
 
   return `
     <div class="susc-item">
       <div class="info">
         <strong>${escapeHtml(s.nombre_plan)}</strong>
         <div class="susc-uso">
-          <span class="usadas">${s.clases_usadas === null ? '…' : s.clases_usadas} tomadas</span>
+          <span class="usadas">${s.clases_usadas} tomadas</span>
           <span class="sep">·</span>
-          <span class="disponibles ${disponibles === 0 ? 'agotado' : ''}">${disponibles === null ? '…' : disponibles} disponibles</span>
+          <span class="disponibles ${disponibles === 0 ? 'agotado' : ''}">${disponibles} disponibles</span>
           <span class="sep">·</span>
           <span class="total">${s.clases_incluidas} en total</span>
         </div>
