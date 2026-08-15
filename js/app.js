@@ -322,7 +322,8 @@ function renderPasoConCupo() {
     </div>
     <div class="summary-card">
       <div class="cls">${escapeHtml(e.nombre_plan)}</div>
-      <div class="meta">Te quedan ${restantes} de ${e.clases_incluidas} clases · vence el ${e.fecha_fin}</div>
+      <div class="plan-restantes"><span class="num">${restantes}</span> de ${e.clases_incluidas} clases disponibles</div>
+      <div class="plan-vence">Vence el ${formatearFechaCortaISO(e.fecha_fin)}</div>
     </div>
     <div id="paso-cupo-msg"></div>
     <div style="display:flex; gap:10px; margin-top:14px;">
@@ -360,9 +361,9 @@ function renderPasoElegirPlan() {
   if (!e.encontrado) {
     aviso = 'Para reservar necesitas un plan activo. Elige una opción:';
   } else if (e.vencido) {
-    aviso = `Tu plan (${escapeHtml(e.nombre_plan)}) venció el ${e.fecha_fin}. Elige un nuevo plan para continuar:`;
+    aviso = `Tu plan (${escapeHtml(e.nombre_plan)}) venció el ${formatearFechaCortaISO(e.fecha_fin)}. Elige un nuevo plan para continuar:`;
   } else {
-    aviso = `Ya usaste tus ${e.clases_incluidas} clases de este período (vence el ${e.fecha_fin}). Elige un plan para seguir reservando:`;
+    aviso = `Ya usaste tus ${e.clases_incluidas} clases de este período (vence el ${formatearFechaCortaISO(e.fecha_fin)}). Elige un plan para seguir reservando:`;
   }
 
   modalInner(`
@@ -534,6 +535,14 @@ function formatearFechaLarga(fechaISO) {
 
 function formatearFechaCorta(date) {
   const d = new Date(date);
+  return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
+}
+
+// Igual que formatearFechaCorta, pero para fechas que llegan como string ISO
+// "yyyy-MM-dd" (sin hora) — hay que fijar la hora a mediodía local, si no el
+// navegador la interpreta en UTC y puede mostrar el día anterior.
+function formatearFechaCortaISO(fechaISO) {
+  const d = new Date(fechaISO + 'T00:00:00');
   return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
 }
 

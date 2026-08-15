@@ -546,6 +546,38 @@ button.danger { background: var(--danger); color: #111; }
   text-decoration: line-through;
 }
 
+.summary-card {
+  background: rgba(200, 240, 0, 0.06);
+  border: 1px solid rgba(200, 240, 0, 0.3);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.summary-card .cls {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.summary-card .plan-restantes {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.summary-card .plan-restantes .num {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.summary-card .plan-vence {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 .reserva-resumen {
   background: var(--bg-card);
   border: 1px solid var(--accent);
