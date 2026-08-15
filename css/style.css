@@ -706,6 +706,20 @@ button.danger { background: var(--danger); color: #111; }
 .bank-row:last-child { border-bottom: none; }
 .bank-row span { color: var(--text-dim); }
 
+.alumno-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.alumno-chevron {
+  color: var(--accent);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
 .susc-item {
   display: flex;
   justify-content: space-between;
